@@ -1,0 +1,25 @@
+# Deterministic risk policy (ADR-008/ADR-012).
+# The risk engine hard-clamps whatever this file says. Model confidence can
+# never raise any cap. Missing or stale information fails closed.
+fail_closed: true
+
+testnet:
+  max_leverage: 10        # free on testnet: collect liquidation/funding/calibration data
+  notional_cap: "10000.00"  # USD-equivalent notional cap per instrument
+
+mainnet:
+  initial_leverage: 1     # every mainnet rung starts here
+  max_leverage: 10
+  ladder:                 # evidence-gated unlock; requirements are evaluated
+    - leverage: 2         # by the offline promotion process (S8+), by humans,
+      unlock_requires:    # never by the models.
+        - "calibration_report_ece_below_0.10"
+        - "testnet_4_weeks_no_killswitch"
+    - leverage: 5
+      unlock_requires:
+        - "prior_rung_30d_profitable_after_costs"
+        - "max_drawdown_below_10pct"
+    - leverage: 10
+      unlock_requires:
+        - "prior_rung_30d_profitable_after_costs"
+        - "human_approval"

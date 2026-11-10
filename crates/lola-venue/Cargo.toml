@@ -1,0 +1,13 @@
+[package]
+name = "lola-venue"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "LOLA venue abstraction; Hyperliquid first, Nado later"
+
+[dependencies]
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }

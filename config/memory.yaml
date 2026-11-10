@@ -1,0 +1,25 @@
+# Memory layer configuration (docs/MEMORY.md, ADR-007/ADR-009).
+# Philosophy: immutable core + TTL'd bulk. Facts are canonical; the ledger is
+# append-only; bulky payloads compact to content-addressed blobs on schedule.
+active_profile: laptop
+
+profiles:
+  laptop:
+    description: "Any modern laptop: both models resident at 4-bit (~2.6 GB)."
+    ram_budget_mb: 8192
+    resident: [d1-2b, lfm3-1.7b]
+    on_demand: []
+  constrained:
+    description: "Older laptop / small-memory device: decision model resident, agent swapped on demand."
+    ram_budget_mb: 3072
+    resident: [d1-2b]
+    on_demand: [lfm3-1.7b]
+
+ttl:
+  # Days before bulky payloads are compacted to blobs/summaries.
+  # Rows and hashes are always kept; only payloads move.
+  model_payloads_days: 30
+  session_bulk_days: 90
+  feature_snapshots_days: 180
+  # Data classes never compacted or deleted.
+  immutable: [decision_runs, decision_outcomes, paper_orders, paper_fills, risk_checks, graph_nodes]

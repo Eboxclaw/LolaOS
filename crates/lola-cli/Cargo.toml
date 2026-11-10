@@ -1,0 +1,22 @@
+[package]
+name = "lola-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "LOLA OS command-line interface"
+
+[[bin]]
+name = "lola"
+path = "src/main.rs"
+
+[dependencies]
+lola-core = { workspace = true }
+lola-infer = { workspace = true }
+lola-venue = { workspace = true }
+lola-replay = { workspace = true }
+clap = { workspace = true }
+serde_yaml = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }

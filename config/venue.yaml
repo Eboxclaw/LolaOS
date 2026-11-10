@@ -1,0 +1,15 @@
+# Venue configuration (ADR-005).
+# Hyperliquid first, testnet. Nado (Inchain) is designed-for, built later
+# behind the same Venue trait (docs/RFC-002.md §8).
+venue: hyperliquid
+network: testnet
+products: [perp, spot]
+watchlist:
+  - BTC-PERP
+  - ETH-PERP
+  - HYPE/USDC        # spot pair placeholder; confirmed during S6 data backfill
+
+# Key management is a carved-out discussion (docs/KEY_MANAGEMENT.md).
+# No credentials exist in v0.1 and none are read from this file.
+credentials:
+  mode: none

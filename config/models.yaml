@@ -1,0 +1,24 @@
+# LOLA model registry (ADR-006).
+# Active models are loadable by the nano-RIPL layer; registered models are
+# metadata-only until their slice lands (see docs/ROADMAP.md, "Later").
+active:
+  - model_id: d1-2b
+    repository: LiquidAI/d1-2B
+    role: decision
+    quantization: q4_k_m
+    backend: reference-llamacpp   # S2 correctness oracle; custom engine replaces it in S3
+    context_limit: 131072
+    est_ram_mb: 1400
+  - model_id: lfm3-1.7b
+    repository: LiquidAI/LFM3-1.7B
+    role: agent
+    quantization: q4_k_m
+    backend: reference-llamacpp
+    context_limit: 262144
+    est_ram_mb: 1200
+registered:
+  - { model_id: lfm3-vl-2b,      repository: LiquidAI/LFM3-VL-2B,      role: specialist, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1400 }
+  - { model_id: lfm3-audio-2b,   repository: LiquidAI/LFM3-Audio-2B,   role: specialist, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1400 }
+  - { model_id: lfm3-omni-2b,    repository: LiquidAI/LFM3-Omni-2B,    role: specialist, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1600 }
+  - { model_id: d1-omni-2b,      repository: LiquidAI/d1-Omni-2B,      role: specialist, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1500 }
+  - { model_id: lfm3-1.7b-base,  repository: LiquidAI/LFM3-1.7B-Base,  role: specialist, quantization: bf16,   backend: none, context_limit: 262144, est_ram_mb: 4000 }
