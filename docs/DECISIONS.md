@@ -101,3 +101,63 @@ veto live signals. Go/no-go recorded here before A1 runs with d1 active.
 **ADR-016 — Venue trait is the only venue boundary.** All venue knowledge
 lives behind `lola-venue::Venue`. Nado drops in later without kernel
 changes.
+
+---
+
+*Harness deep-dive round (researched 2026-11-10, locked same day; three
+research agents: chip backends, Pi/Hermes/llama.cpp anatomy, LFM3
+internals — sources in HARNESS/NANO_RIPL/MEMORY docs).*
+
+**ADR-017 — Omni model pair from day one.** Laptop profile hosts
+d1-Omni-2B (Q8_0, 1.85 GB — no 4-bit exists) + LFM3-Omni-2B (Q4_K_M,
+~1.1 GB): spoken questions/answers and video understanding are first-class
+(session `media` entries, modality router, mmproj sidecars). Pairs are
+declared per profile; constrained devices fall back to the text pair
+behind the same two slots. *Rejected:* text-pair-only (re-architecture
+when voice arrives); omni-everywhere (Q8 floor + 32K ctx too heavy for
+Android-class budgets today).
+
+**ADR-018 — Compute: Tier-1 universal only in v0.1; vendor plugins via
+dlopen C-ABI later.** Tier 1 = Rust CPU kernels (AVX2/512·NEON) +
+Vulkan/wgpu (production on AMD, works on Tensor Mali, **probed with CPU
+fallback on Adreno** where Vulkan is driver-broken). Hexagon/QAIRT and
+LiteRT-Tensor are designed-for plugins, not v0.1 scope. *Rejected:*
+Hexagon in v0.1 (packaging unverified, engine lacks parity); CPU-only
+(throws away AMD/Tensor GPU); NNAPI (deprecated), SYCL (AMD support
+removed), ROCm (loses decode to Vulkan).
+
+**ADR-019 — Crate split: `lola-memory` + `lola-harness`.** The memory/DB/KG
+subsystem — the most important part — gets its own crate with its own
+tests and budgets; the kernel (loops, sessions, tools, risk types) sits on
+top. `lola-core` dissolves. *Rejected:* monolithic core (crown jewel
+shares a crate with trading concerns); full split with a `lola-types`
+crate (ceremony over a young codebase).
+
+**ADR-020 — Harness shape: Pi session-tree + ≤10 native tools, no MCP.**
+Sessions are append-only event trees (id/parent_id; entry taxonomy
+message/model_change/compaction/context_edit/custom/media) in SQLite; one
+loop core serves every frontend; tool surface ≤10, schema'd, gated,
+progressive disclosure. *Rejected:* Hermes' 70+ tools/28 toolsets and MCP
+(the context tax); JSONL files (SQLite already won in ADR-009).
+
+**ADR-021 — Frozen memory snapshots.** Curated memory (L0) is snapshotted
+at session start and injected once; mid-session changes land next session.
+Cache-stability law 1 — on-device, a rewritten prefix is real prefill
+compute. *Rejected:* Hermes-style per-turn micro-compaction by default.
+
+**ADR-022 — Compaction-as-archive with witnesses.** A compaction row
+carries summary + first_kept_event_id + absorbed_event_ids[]; originals
+are never deleted and stay FTS-searchable; the KV-side twin is
+`seq_rm`. *Rejected:* in-place history rewrite.
+
+**ADR-023 — GGUF is the single weight format.** Liquid's official GGUFs
+(all 7 checkpoints, Q4_K_M~1.05–1.1 GB; mmproj sidecars for omni) drop in
+unmodified; oracle floor pinned at llama.cpp b11960+; no conversion fork.
+Custom engine reads the same files. *Rejected:* safetensors/ONNX pipelines
+in the runtime.
+
+**ADR-024 — Decision slot is prefill-only with transient KV.** d1 answers
+in one forward pass with zero generated tokens; its KV is scratch, evicted
+after readout. Residency accounting counts weights + agent KV + d1 prefill
+peak. *Rejected:* treating both slots as streaming decoders (wastes RAM,
+mis-models d1).

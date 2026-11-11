@@ -3,10 +3,11 @@
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use lola_core::config::{MemoryConfig, RiskConfig};
-use lola_core::persistence;
+use lola_harness::config::RiskConfig;
 use lola_infer::config::ModelsConfig;
 use lola_infer::residency;
+use lola_memory::config::MemoryConfig;
+use lola_memory::persistence;
 use lola_venue::config::VenueConfig;
 
 #[derive(Parser)]
@@ -65,26 +66,51 @@ fn doctor(config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         venue.credentials.mode
     );
     println!(
-        "  models      : {} active / {} registered",
-        models.active.len(),
+        "  registry    : {} loadable / {} registered",
+        models.models.len(),
         models.registered.len()
     );
-    for entry in &models.active {
+
+    // Every profile declares a model pair; plan residency under its budget.
+    for (name, profile) in &memory.profiles {
+        let plan = residency::plan(profile.ram_budget_mb, &profile.pair, &models)?;
+        println!("  profile [{name}] budget {} MB", profile.ram_budget_mb);
+        for (label, slot) in [
+            ("slot A (decision)", &plan.decision),
+            ("slot B (agent)   ", &plan.agent),
+        ] {
+            let entry = models.find(&slot.model_id);
+            let quant = entry.map_or("?", |e| e.quantization.as_str());
+            println!(
+                "    {label}: {:<13} {:<6} {:<7} ~{} MB — {}",
+                slot.model_id,
+                format!("{:?}", slot.modality).to_lowercase(),
+                quant,
+                slot.est_ram_mb,
+                slot.plan.name()
+            );
+        }
+        let mmproj: Vec<&str> = [&plan.decision, &plan.agent]
+            .iter()
+            .filter_map(|slot| models.find(&slot.model_id)?.mmproj.as_deref())
+            .collect();
+        if !mmproj.is_empty() {
+            println!("    mmproj sidecars: {}", mmproj.join(", "));
+        }
         println!(
-            "    - {:<12} [{:<8}] {} @ {} (~{} MB)",
-            entry.model_id, entry.role, entry.repository, entry.quantization, entry.est_ram_mb
+            "    residency     : {}",
+            if plan.fully_resident {
+                "fully resident"
+            } else {
+                "agent swaps on demand (decision never downgraded)"
+            }
         );
     }
-
-    let profile = memory.profile()?;
     println!(
-        "  profile     : {} — {}",
-        memory.active_profile, profile.description
+        "  active      : {} — {}",
+        memory.active_profile,
+        memory.profile()?.description
     );
-    let plan = residency::plan(profile.ram_budget_mb, &models);
-    for (model_id, slot) in &plan.slots {
-        println!("    residency : {:<12} {}", model_id, slot.name());
-    }
     println!(
         "  memory ttl  : payloads {}d / sessions {}d / snapshots {}d (immutable: {})",
         memory.ttl.model_payloads_days,
@@ -100,6 +126,7 @@ fn doctor(config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         risk.mainnet.max_leverage,
         risk.mainnet.ladder.len()
     );
+    println!("  compute     : tier-1 only — Rust CPU (AVX2/512·NEON) + Vulkan/wgpu; Adreno probes → CPU fallback");
 
     let replay = lola_replay::ReplayConfig::default();
     println!(

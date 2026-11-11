@@ -8,7 +8,8 @@ authors.workspace = true
 description = "LOLA nano-RIPL: inference boundary, model registry, residency"
 
 [dependencies]
-lola-core = { workspace = true }
+lola-harness = { workspace = true }
+lola-memory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

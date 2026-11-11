@@ -38,26 +38,34 @@ loaded · restart mid-loop recovers with no duplicate orders (idempotency
 keys) · per-stage latency metrics emitted · a `SELL` that would short or a
 leverage request above policy is blocked and logged.
 
-## S2 — nano-RIPL v0 (oracle)
+## S2 — nano-RIPL v0 (oracle, omni pair)
 
-Model registry live · residency manager with device profiles ·
-`reference-llamacpp` backend linked in-process · decision contract +
-conformance harness · golden outputs recorded · load/swap/latency
-benchmarks in CI. *Day-0 task: verify or produce good GGUF Q4_K_M quants
-of d1-2B and LFM3-1.7B — if either lacks a usable quant, converting them
-becomes part of this slice.*
+Model registry live · pair-based residency manager · `reference-llamacpp`
+(llama.cpp ≥ b11960, vendor-pinned) linked in-process · **omni pair
+bring-up** (d1-Omni-2B Q8 + LFM3-Omni-2B Q4, mmproj sidecars, media
+session entries) · decision contract + conformance harness (noul/choice/
+score via systemone-style readout) · golden outputs recorded ·
+load/swap/latency benchmarks in CI. *Day-0 task: vendor-pin GGUF
+revisions + checksums (official GGUFs verified to exist; d1-Omni is
+Q8-only — see risk register).*
 
-**Exit:** both models load cold < 5 s and warm-swap < 1 s · golden set
-recorded and versioned · conformance failures fail CI · SLO dashboard
-numbers exist.
+**Exit:** omni pair loads cold < 5 s / warm-swap < 1 s · d1 decision
+warm < 200 ms at 1-question, < 800 ms at 5k-token states · golden set
+recorded and versioned · conformance failures fail CI.
 
-## S3 — Custom LFM3-optimized engine (parallel track)
+## S3 — Custom tri-hybrid engine (parallel track)
 
-Weight container → 4-bit CPU kernels → hybrid conv/attention path →
-golden-parity → then Metal. Never blocks other slices.
+GGUF weight container → 4-bit CPU kernels → LFM3 tri-hybrid path: gated
+short-conv k=7 streaming state, SWA-256 ring buffer, global attention
+with partial RoPE (θ=1e6, 50% head_dim), head-wise sigmoid gate, sandwich
+norm, GQA 16/4 → **d1 readout port** from `modeling_d1_lfm3_*.py`
+(extraction/boxes/multiple — not in llama.cpp today) → golden parity →
+then Vulkan/wgpu kernels (AMD + Tensor Mali; Adreno probe→CPU). Never
+blocks other slices.
 
-**Exit:** parity with oracle on the full golden set · ≥ oracle speed on
-decision-contract prompts · resident set within profile budget.
+**Exit:** parity with oracle on the full golden set incl. d1 typed
+answers · ≥ oracle speed on decision-contract prompts · resident set
+within profile budget.
 
 ## S4 — Memory & retrieval
 
@@ -122,5 +130,10 @@ escalations produce ledger-recorded investigations · loop p95 unaffected.
 ## Later (unordered)
 
 Nado (Inchain) adapter · strategy discovery ladder B0–B3 · specialist
-models (VL/Audio/Omni/Base) · Android target + Compose UI · mainnet
-leverage-ladder unlock process · equities/ETFs reconsidered.
+models (VL/Audio/Base) · Android target + Compose UI · mainnet
+leverage-ladder unlock process · equities/ETFs reconsidered ·
+**Hexagon/QAIRT plugin (Snapdragon NPU)** · **LiteRT-Tensor plugin
+(Pixel 10+)** · **d1-Omni Q4 quantization** (unblocks omni pair on
+constrained devices) · voice/video frontends (media session entries
+already exist) · LFM Open License v1.0 legal review (blocking gate for
+any distribution).

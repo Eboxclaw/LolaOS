@@ -11,6 +11,19 @@ use serde::{Deserialize, Serialize};
 pub const CONTRACT_VERSION: &str = "1.0";
 pub const FEATURE_SCHEMA_VERSION: &str = "market-state-v1";
 
+/// Input modality of a model or media payload (ADR-019: omni-native
+/// harness). `Omni` marks a model that accepts every modality; media
+/// entries never use it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Modality {
+    Text,
+    Audio,
+    Image,
+    Video,
+    Omni,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Side {

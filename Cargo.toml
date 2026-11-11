@@ -1,7 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/lola-core",
+    "crates/lola-memory",
+    "crates/lola-harness",
     "crates/lola-infer",
     "crates/lola-venue",
     "crates/lola-replay",
@@ -16,7 +17,8 @@ license = "Proprietary"
 authors = ["LOLA"]
 
 [workspace.dependencies]
-lola-core = { path = "crates/lola-core" }
+lola-memory = { path = "crates/lola-memory" }
+lola-harness = { path = "crates/lola-harness" }
 lola-infer = { path = "crates/lola-infer" }
 lola-venue = { path = "crates/lola-venue" }
 lola-replay = { path = "crates/lola-replay" }

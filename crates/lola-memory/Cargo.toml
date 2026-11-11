@@ -1,11 +1,11 @@
 [package]
-name = "lola-core"
+name = "lola-memory"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "LOLA kernel: contracts, event bus, persistence, risk types"
+description = "LOLA memory: SQLite ledger, knowledge graph, retrieval, compaction, blobs"
 
 [dependencies]
 serde = { workspace = true }

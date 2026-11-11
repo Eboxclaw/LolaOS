@@ -1,11 +1,11 @@
-//! Kernel error type.
+//! Memory-layer error type.
 
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, LolaError>;
+pub type Result<T> = std::result::Result<T, LolaMemoryError>;
 
 #[derive(Debug, Error)]
-pub enum LolaError {
+pub enum LolaMemoryError {
     #[error("database error: {0}")]
     Db(#[from] rusqlite::Error),
 

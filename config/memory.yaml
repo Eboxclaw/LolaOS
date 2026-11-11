@@ -1,19 +1,21 @@
-# Memory layer configuration (docs/MEMORY.md, ADR-007/ADR-009).
-# Philosophy: immutable core + TTL'd bulk. Facts are canonical; the ledger is
-# append-only; bulky payloads compact to content-addressed blobs on schedule.
+# Memory layer configuration (docs/MEMORY.md, ADR-007/ADR-009/ADR-019).
+# Profiles declare a model PAIR for the two slots; the residency planner
+# verifies the pair fits the RAM budget (decision slot never downgraded).
 active_profile: laptop
 
 profiles:
   laptop:
-    description: "Any modern laptop: both models resident at 4-bit (~2.6 GB)."
+    description: "Modern laptop: omni pair resident (~3 GB weights; decision slot is prefill-only so its KV is transient)."
     ram_budget_mb: 8192
-    resident: [d1-2b, lfm3-1.7b]
-    on_demand: []
+    pair:
+      decision: d1-omni-2b
+      agent: lfm3-omni-2b
   constrained:
-    description: "Older laptop / small-memory device: decision model resident, agent swapped on demand."
+    description: "Small laptop / Android-class device: text pair behind the same slots; omni when d1-Omni ships a 4-bit quant."
     ram_budget_mb: 3072
-    resident: [d1-2b]
-    on_demand: [lfm3-1.7b]
+    pair:
+      decision: d1-2b
+      agent: lfm3-1.7b
 
 ttl:
   # Days before bulky payloads are compacted to blobs/summaries.

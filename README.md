@@ -8,6 +8,7 @@ process, no sidecars, mobile constraints respected from day one.
 > creates value, record everything, improve from outcomes.
 
 - [RFC-002 — Architecture](docs/RFC-002.md)
+- [HARNESS — The OS kernel](docs/HARNESS.md)
 - [MEMORY — Storage, knowledge graph, retrieval](docs/MEMORY.md)
 - [NANO_RIPL — Inference layer](docs/NANO_RIPL.md)
 - [ROADMAP — Pizza slices & exit criteria](docs/ROADMAP.md)
@@ -15,8 +16,10 @@ process, no sidecars, mobile constraints respected from day one.
 
 ## Status
 
-**S0 — Foundation** (see [ROADMAP](docs/ROADMAP.md)). Docs + workspace
-scaffold only; no business logic yet.
+**S0 — Foundation + harness deep-dive** (see [ROADMAP](docs/ROADMAP.md)):
+docs, workspace with `lola-memory` / `lola-harness` / `lola-infer` /
+`lola-venue` / `lola-replay` / `lola-cli`, schema (0001+0002), omni-pair
+config. No engine code yet.
 
 ## Quickstart
 
@@ -29,7 +32,9 @@ cargo test --all
 ## Scope guardrails (v0.1)
 
 Hyperliquid only (testnet). Paper → testnet execution; mainnet arrives via an
-evidence-gated leverage ladder. d1-2B (decision) + LFM3-1.7B (agent) at 4-bit.
-Key management and UI/UX are explicitly carved out to separate discussions —
+evidence-gated leverage ladder. Model **pairs per profile** (ADR-017):
+laptop = omni pair (d1-Omni-2B + LFM3-Omni-2B), constrained = text pair —
+same two slots. Tier-1 compute only (Rust CPU + Vulkan/wgpu). Key
+management and UI/UX are explicitly carved out to separate discussions —
 see [docs/KEY_MANAGEMENT.md](docs/KEY_MANAGEMENT.md) and
 [docs/UI_UX.md](docs/UI_UX.md).

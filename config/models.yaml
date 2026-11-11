@@ -1,24 +1,45 @@
-# LOLA model registry (ADR-006).
-# Active models are loadable by the nano-RIPL layer; registered models are
-# metadata-only until their slice lands (see docs/ROADMAP.md, "Later").
-active:
-  - model_id: d1-2b
-    repository: LiquidAI/d1-2B
+# LOLA model registry (ADR-006, ADR-019).
+# Every entry is loadable by the nano-RIPL layer behind the same two slots;
+# profiles in memory.yaml declare which PAIR is resident per device.
+# Runtime floor: llama.cpp b11960+ (GGUF metadata) — see docs/NANO_RIPL.md.
+models:
+  # --- omni pair (laptop profile default) -------------------------------
+  - model_id: d1-omni-2b
+    repository: LiquidAI/d1-Omni-2B-GGUF
     role: decision
-    quantization: q4_k_m
-    backend: reference-llamacpp   # S2 correctness oracle; custom engine replaces it in S3
+    modality: omni            # text + image + video + audio questions
+    quantization: q8_0        # no 4-bit exists today (risk register, NANO_RIPL.md)
+    backend: reference-llamacpp
     context_limit: 131072
-    est_ram_mb: 1400
-  - model_id: lfm3-1.7b
-    repository: LiquidAI/LFM3-1.7B
+    est_ram_mb: 1850
+    mmproj: mmproj-d1-omni-2b-f16.gguf
+  - model_id: lfm3-omni-2b
+    repository: LiquidAI/LFM3-Omni-2B-GGUF
     role: agent
+    modality: omni            # text + image + video + audio in; text/speech out
+    quantization: q4_k_m
+    backend: reference-llamacpp
+    context_limit: 32768      # omni ceiling
+    est_ram_mb: 1100
+    mmproj: mmproj-lfm3-omni-2b-f16.gguf
+  # --- text pair (constrained profile fallback; same slots) -------------
+  - model_id: d1-2b
+    repository: LiquidAI/d1-2B-GGUF
+    role: decision
+    modality: text
+    quantization: q4_k_m
+    backend: reference-llamacpp
+    context_limit: 131072
+    est_ram_mb: 1100
+  - model_id: lfm3-1.7b
+    repository: LiquidAI/LFM3-1.7B-GGUF
+    role: agent
+    modality: text
     quantization: q4_k_m
     backend: reference-llamacpp
     context_limit: 262144
-    est_ram_mb: 1200
+    est_ram_mb: 1050
 registered:
-  - { model_id: lfm3-vl-2b,      repository: LiquidAI/LFM3-VL-2B,      role: specialist, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1400 }
-  - { model_id: lfm3-audio-2b,   repository: LiquidAI/LFM3-Audio-2B,   role: specialist, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1400 }
-  - { model_id: lfm3-omni-2b,    repository: LiquidAI/LFM3-Omni-2B,    role: specialist, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1600 }
-  - { model_id: d1-omni-2b,      repository: LiquidAI/d1-Omni-2B,      role: specialist, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1500 }
-  - { model_id: lfm3-1.7b-base,  repository: LiquidAI/LFM3-1.7B-Base,  role: specialist, quantization: bf16,   backend: none, context_limit: 262144, est_ram_mb: 4000 }
+  - { model_id: lfm3-vl-2b,     repository: LiquidAI/LFM3-VL-2B-GGUF,     role: specialist, modality: text, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1100 }
+  - { model_id: lfm3-audio-2b,  repository: LiquidAI/LFM3-Audio-2B-GGUF,  role: specialist, modality: text, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1100 }
+  - { model_id: lfm3-1.7b-base, repository: LiquidAI/LFM3-1.7B-Base,      role: specialist, modality: text, quantization: bf16,   backend: none, context_limit: 262144, est_ram_mb: 4000 }

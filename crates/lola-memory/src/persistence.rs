@@ -17,7 +17,13 @@ use sha2::{Digest, Sha256};
 use crate::error::Result;
 
 /// Canonical migrations, single-sourced from the repo `migrations/` directory.
-const MIGRATIONS: &[(i64, &str)] = &[(1, include_str!("../../../migrations/0001_init.sql"))];
+const MIGRATIONS: &[(i64, &str)] = &[
+    (1, include_str!("../../../migrations/0001_init.sql")),
+    (
+        2,
+        include_str!("../../../migrations/0002_omni_sessions.sql"),
+    ),
+];
 
 /// Open the operational database with kernel pragmas applied.
 pub fn open(path: &Path) -> Result<Connection> {
@@ -91,5 +97,7 @@ mod tests {
     fn migration_checksums_are_stable() {
         // Guards against editing an already-applied migration in place.
         assert_eq!(checksum(MIGRATIONS[0].1).len(), 16);
+        assert_eq!(checksum(MIGRATIONS[1].1).len(), 16);
+        assert_ne!(checksum(MIGRATIONS[0].1), checksum(MIGRATIONS[1].1));
     }
 }

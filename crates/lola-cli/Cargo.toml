@@ -12,7 +12,8 @@ name = "lola"
 path = "src/main.rs"
 
 [dependencies]
-lola-core = { workspace = true }
+lola-memory = { workspace = true }
+lola-harness = { workspace = true }
 lola-infer = { workspace = true }
 lola-venue = { workspace = true }
 lola-replay = { workspace = true }

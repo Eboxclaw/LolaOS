@@ -1032,8 +1032,9 @@ name = "lola-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
- "lola-core",
+ "lola-harness",
  "lola-infer",
+ "lola-memory",
  "lola-replay",
  "lola-venue",
  "rusqlite",
@@ -1042,7 +1043,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "lola-core"
+name = "lola-harness"
+version = "0.1.0"
+dependencies = [
+ "lola-memory",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lola-infer"
+version = "0.1.0"
+dependencies = [
+ "lola-harness",
+ "lola-memory",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "lola-memory"
 version = "0.1.0"
 dependencies = [
  "arrow",
@@ -1056,18 +1083,6 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "lola-infer"
-version = "0.1.0"
-dependencies = [
- "lola-core",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror",
- "tracing",
 ]
 
 [[package]]

@@ -7,7 +7,7 @@
 //! - `lola-custom` (S3): the LFM3-optimized engine. Ships only after
 //!   golden-test parity with the oracle.
 
-use lola_core::contracts::DecisionV1;
+use lola_harness::contracts::DecisionV1;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -50,7 +50,7 @@ pub struct Question {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DecisionRequest {
-    pub state: lola_core::contracts::MarketStateV1,
+    pub state: lola_harness::contracts::MarketStateV1,
     pub questions: Vec<Question>,
 }
 
