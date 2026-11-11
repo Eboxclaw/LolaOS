@@ -11,9 +11,11 @@
 //! - [`graph`]       — knowledge-graph node/edge types and traversal bounds
 //! - [`retrieval`]   — the five-step pipeline and its budgets
 //! - [`compaction`]  — archive-with-witnesses types (Hermes pattern)
+//! - [`casebank`]    — outcome-weighted decision cases (ADR-031)
 //! - [`blobs`]       — content-addressed payload store path scheme
 
 pub mod blobs;
+pub mod casebank;
 pub mod compaction;
 pub mod config;
 pub mod error;

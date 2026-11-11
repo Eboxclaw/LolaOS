@@ -1,20 +1,38 @@
-# UI/UX — CARVED OUT (no decisions here)
+# UI/UX — Requirements (carve-out partially lifted 2026-11-11)
 
-Status: **deliberately undecided** (ADR-014). Nothing about interfaces is
-designed, sketched or implied by any slice.
+Status: the **requirements below are owner-stated and locked**; visual
+design, layout craft and motion remain a future discussion. Stack is
+already decided independently (ADR-026/027): Compose Multiplatform over
+UniFFI to the Rust core — the UI owns presentation only, never logic.
 
-Direction stated by the owner (recorded, not designed): multiplatform from
-the start with Rust, and **Compose Multiplatform or Kotlin** named as the
-UI direction. The kernel therefore keeps a strict separation: `lola-core`
-and siblings expose data and contracts; every presentation concern belongs
-to a future UI layer that consumes them.
+## Owner requirements (recorded verbatim in intent)
 
-Questions the future discussion must answer:
+- **Chat-friendly main window** — conversational surface with the agent
+  (text now, voice later via omni slot).
+- **Session history** — durable, searchable (FTS5 via the ledger), with
+  branching visible (the session tree is real; the drawer shows it).
+- **FAB + quick buttons** — always-reachable actions.
+- **Decision cards** — every decision surfaces its typed answers,
+  probabilities, calibration-adjusted scores, and eventual outcome.
+- **Voice input** (omni) when the omni pair is resident.
 
-1. Compose Multiplatform vs Kotlin Multiplatform vs plain Compose on
-   Android — and does the laptop UI share code with the mobile UI?
-2. What does the operator actually need to watch (decision ledger, regime
-   classifications, escalation queue, risk state, kill switch)?
-3. How much surface is read-only dashboards vs interactive control?
-4. Relationship to S8's kill switch and ADR-008's leverage-ladder approvals
-   — which actions require a human in the loop?
+## Quick actions (initial set)
+
+| Action | What it does | Context cost |
+|---|---|---|
+| Explain decision | opens the decision card + lineage (evidence, retrieval steps, case-bank cases) | zero — reads the ledger |
+| Escalate to research | creates an agent session seeded with the decision id *as an identifier* | minimal — agent pulls via tools |
+| Kill switch | risk engine halt; persists; requires human to clear | zero |
+| Run support pass | d1 prefill over the current view's question set | burst only |
+
+## The hard rule (ADR-032)
+
+**The UI never dumps content into the agent's context.** Quick actions
+trigger tools and retrieval; payloads enter context only through the
+support-pass gate (`docs/CONTEXT.md`). A chat message may reference a
+decision/session/graph node *by id*; the agent fetches what it needs.
+
+## Open (future visual-design discussion)
+
+Layout, theming, motion, information density, tablet/desktop shells,
+widgets/notifications for decision events, accessibility.

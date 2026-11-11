@@ -40,11 +40,13 @@ peak during the pass, evicted after readout (ADR-024).
   NEON. Reference points: 113–143 tok/s decode for 1.2B Q4 on current
   Ryzen; 8–25 tok/s on Android CPUs ([Liquid llama.cpp docs](https://docs.liquid.ai/deployment/on-device/llama-cpp),
   [ggml #23736](https://github.com/ggml-org/llama.cpp/discussions/23736)).
-- Vulkan compute via wgpu: **production on AMD** ([Phoronix: Vulkan beats
-  ROCm on decode](https://www.phoronix.com/review/lemonade-vulkan-rocm)),
-  **works on Tensor's Mali/Immortalis** ([#23193](https://github.com/ggml-org/llama.cpp/discussions/23193)),
-  **broken on Adreno at driver level** → capability probe → CPU fallback
-  ([#16881](https://github.com/ggml-org/llama.cpp/issues/16881)).
+- Vulkan compute via wgpu: **production on AMD laptops** ([Phoronix:
+  Vulkan beats ROCm on decode](https://www.phoronix.com/review/lemonade-vulkan-rocm)).
+  *Correction (Nov 2026 research):* on **Adreno** Vulkan is driver-broken
+  → probe → CPU fallback ([#16881](https://github.com/ggml-org/llama.cpp/issues/16881)),
+  and on **Tensor phones Vulkan historically loses to CPU**
+  ([#829](https://github.com/ggml-org/llama.cpp/issues/829)) — the K7
+  Vulkan tier is an **AMD-laptop** tier; phones run our CPU kernels.
 
 **Tier 2 (designed-for now, built later; dlopen C-ABI plugins):**
 
@@ -60,10 +62,15 @@ deps (conversion projects without documented LFM3 paths).
 
 ## 4. Backends behind `Infer`
 
-1. **`reference-llamacpp` (S2) — the oracle.** llama.cpp ≥ b11960 linked
-   **in-process** (library, never llama-server). Serves noul/choice/score
-   via the systemone-style path; its outputs on the decision-contract
-   prompt set become the **golden tests**.
+**The engine is the product (ADR-003 rev. — full design in
+`docs/ENGINE.md`): our own kernels, our own repacked weight layout, our
+own dual-slot scheduler.** llama.cpp is external to the shipped system:
+
+1. **`reference-llamacpp` (S2) — the oracle, used at build/test time.**
+   llama.cpp ≥ b11960 linked in-process during development. Serves
+   noul/choice/score via the systemone-style path; its outputs on the
+   decision-contract prompt set become the **golden tests**. Nothing of
+   it ships inside LOLA.
 2. **`lola-custom` (S3) — the engine we want.** Our own runtime for the
    tri-hybrid: gated short-conv k=7 streaming state, SWA ring buffer (256),
    global attention with partial RoPE (50% of head_dim, θ=1e6), head-wise

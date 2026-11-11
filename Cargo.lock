@@ -1046,10 +1046,12 @@ dependencies = [
 name = "lola-harness"
 version = "0.1.0"
 dependencies = [
+ "hex",
  "lola-memory",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "thiserror",
  "tracing",
  "uuid",

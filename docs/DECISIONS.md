@@ -16,17 +16,19 @@ start with Rust and Compose or Kotlin". *Rejected:* Python-first (RFC-001's
 own recommendation — dies with the mobile requirement); any Python
 sidecar; TS anywhere.
 
-**ADR-003 — Own nano-RIPL inference layer.** Inspired by llama.cpp
-techniques (mmap, quantization), RIPL economics (~1 GB/model @ 4-bit,
-sub-50 ms ambition), Hermes memory patterns and the Pi harness — never
-forked or copied. A custom engine optimized for LFM3-family constructions
-(hybrid conv + attention). **Honest risk note:** this reverses RFC-001's
-"no custom inference engine in the first POC" and is the highest-risk item
-in the roadmap. Mitigation: an in-process `reference-llamacpp` oracle
-backend serves while the custom engine is built; the custom engine ships
-only after kernel-by-kernel golden-test parity. *Rejected:* llama.cpp
-bindings as the permanent answer; candle (pure Rust) — weaker model
-coverage; Python inference sidecar.
+**ADR-003 — Own nano-RIPL inference layer.** *(Revised 2026-11-11, owner
+direction: "we are making our own llama implementations specialized for
+lfm3, weights and attention layers".)* The lola-custom engine — our own
+kernels for the tri-hybrid (conv k=7, SWA-256, partial-RoPE global
+attention, head gates, sandwich norm), our own repacked weight layout
+(GGUF as interchange only), our own dual-slot scheduler — **is the
+product**, not a parallel track. llama.cpp serves exactly two external
+roles: correctness oracle (golden outputs, per-kernel parity gates) and
+GGUF import source; nothing of it ships inside LOLA. Inspired by
+llama.cpp techniques (mmap, quantization), RIPL economics (~1 GB/model @
+4-bit, sub-50 ms ambition), Hermes memory patterns and the Pi harness —
+never forked or copied. *Rejected:* llama.cpp as the shipped engine;
+candle (weaker model coverage); Python inference sidecar.
 
 **ADR-004 — NautilusTrader dropped from v0.1.** Its supported surface is
 Python; embedding its Rust crates directly is unsupported. Its
@@ -161,3 +163,70 @@ in one forward pass with zero generated tokens; its KV is scratch, evicted
 after readout. Residency accounting counts weights + agent KV + d1 prefill
 peak. *Rejected:* treating both slots as streaming decoders (wastes RAM,
 mis-models d1).
+
+---
+
+*Mobile-first rework round (researched 2026-11-11; three research agents —
+stack validation, mobile dual-model inference, context/skills/memory SOTA.
+Sources in MOBILE_FIRST/CONTEXT/ENGINE docs. Question round unanswered →
+recommended options taken: phone runs the loop; Android+desktop only;
+adopt skills standard; docs+types+diagram deliverable.)*
+
+**ADR-025 — Mobile-first inversion: the phone runs the trading loop.**
+Laptop/PC is second. Feasible because LOLA is decision-first: a d1
+prefill burst per closed candle is thermally trivial (phones sustain
+~5–10 *heavy* queries/hour; we use milliseconds). Loop = WorkManager
+ticks + checkpointed FGS (6h-cap aware); agent chat/voice = user-initiated
+bursts; checkpoint/resume is the normal path, never the error path.
+*Rejected:* phone-as-cockpit-only (mobile-first becomes UI-first); device
+handoff with ledger replication (added complexity now, revisit later).
+
+**ADR-026 — Android 17 Memory Limiter is a design law.** The limiter
+meters anon RSS+swap; file-backed mmap'd weights don't count. Design to
+≤ ~2.5 GB anon on 12 GB+ devices; weights stay file-backed; `mlock` is
+unavailable (64 KB RLIMIT) so reclaim-ability (evict + re-fault) is
+designed for, not against. *Rejected:* heap-pinned weights; assuming
+pre-Android-17 behavior.
+
+**ADR-027 — Stack: Compose Multiplatform + UniFFI + in-process Rust;
+WASM never for inference.** CMP's Android target *is* Jetpack Compose
+(desktop door free); UniFFI Kotlin bindings serve ART and desktop JVM from
+one generated set (batch calls; explicit `cancel()` across FFI); the
+phantom-process killer forbids child processes, so the engine lives
+in-process. WASM's only reserved role: a `wasmi` sandbox for untrusted
+third-party skills, later. iOS not designed-for. *Rejected:* WASM
+inference (~15–50% overhead, no NPU); out-of-process engine; iOS now.
+
+**ADR-028 — Adopt the Agent Skills open standard as-is.** SKILL.md
+frontmatter + 3-level progressive disclosure (metadata → body →
+resources); LOLA extensions only via the sanctioned `metadata:` map;
+`search_skills` past 40 skills; install-time validation. Free ecosystem
+(skills.sh, multi-vendor adoption) instead of a bespoke format.
+*Rejected:* custom skill format; deferring skills entirely.
+
+**ADR-029 — Personality = prompt-as-ledger.** Persona is a versioned
+ledger object, injected verbatim at position 1, carried **verbatim through
+compaction** (never summarized — practitioner reports show persona rules
+are what compaction drops), checksummed into every decision.
+*Rejected:* prompt-as-config files outside the ledger.
+
+**ADR-030 — Memory grows four things** (on top of MEMORY.md v2):
+episodes-as-provenance; evolving entity summaries; a beliefs layer
+separated from facts (evidence-vs-inference, provenance + expiry); a
+background "dreaming" consolidation job. *Rejected:* vector DBs, vendor
+memory platforms, MemOS-style abstraction layers.
+
+**ADR-031 — Decision improvement = outcome-weighted case bank.** Retrieve
+k≤5 **settled** past decisions similar to the current state, weighted by
+recency × outcome magnitude, injected into the d1 support pass
+(Memento pattern). Plus: calibration reports + isotonic/temperature
+recalibration of d1 probabilities; ExpeL-style contrastive lessons into
+the beliefs layer; ≤2-arm bandit policy promotion with kill-switch.
+Settled-only is a code-level invariant. Persona and risk limits are
+outside the loop, always.
+
+**ADR-032 — The UI never dumps content into the agent's context.** Quick
+actions (explain / escalate / kill switch / support pass) trigger tools
+and retrieval; references travel as identifiers; payloads enter context
+only through the support-pass gate. Requirements recorded in UI_UX.md;
+visual design still future.

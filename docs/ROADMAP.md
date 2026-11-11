@@ -7,14 +7,15 @@ pass. S3 runs in parallel with S4–S7 (it never blocks them).
 
 | # | Slice | Depends on |
 |---|---|---|
-| S0 | Foundation *(this repo state)* | — |
+| S0 | Foundation ✅ | — |
 | S1 | Kernel harness, no models | S0 |
-| S2 | nano-RIPL v0 (oracle backend) | S0 |
-| S3 | Custom LFM3-optimized engine | S2 (parallel to S4–S7) |
+| S2 | Oracle bring-up (omni pair, golden set) | S0 |
+| S2m | Mobile de-risk (P1–P5 prototypes) | S2 |
+| S3 | **lola-custom engine K0–K8 — the product** | S2 (starts immediately after) |
 | S4 | Memory & retrieval | S1 |
 | S5 | d1 shadow mode on real candles | S2, S6 data optional for synthetic |
 | S6 | Hyperliquid market data | S1 |
-| S7 | Experiment ladder A0–A3 | S4, S5, S6 |
+| S7 | Experiment ladder A0–A3 (case bank in A2) | S4, S5, S6 |
 | S8 | HL testnet execution | S6, S7 |
 | S9 | Agent escalation (LFM3) | S2, S5 |
 
@@ -51,21 +52,34 @@ Q8-only — see risk register).*
 
 **Exit:** omni pair loads cold < 5 s / warm-swap < 1 s · d1 decision
 warm < 200 ms at 1-question, < 800 ms at 5k-token states · golden set
-recorded and versioned · conformance failures fail CI.
+recorded and versioned · conformance failures fail CI · mobile
+instrumentation live (anon-vs-file-backed RSS, thermal headroom, tok/s
+during slot-A bursts). *The oracle is a development-time dependency
+only — nothing of it ships (ADR-003 rev.).*
 
-## S3 — Custom tri-hybrid engine (parallel track)
+## S2m — Mobile de-risk (P1–P5, `docs/MOBILE_FIRST.md` §5)
 
-GGUF weight container → 4-bit CPU kernels → LFM3 tri-hybrid path: gated
-short-conv k=7 streaming state, SWA-256 ring buffer, global attention
-with partial RoPE (θ=1e6, 50% head_dim), head-wise sigmoid gate, sandwich
-norm, GQA 16/4 → **d1 readout port** from `modeling_d1_lfm3_*.py`
-(extraction/boxes/multiple — not in llama.cpp today) → golden parity →
-then Vulkan/wgpu kernels (AMD + Tensor Mali; Adreno probe→CPU). Never
-blocks other slices.
+P1 CPU dual-resident harness (any device; concurrency math + anon RSS) ·
+P2 Hexagon-in-APK smoke on a retail device · P3 LFM-on-Hexagon op
+coverage + sustained decode · P4 mmap-eviction stress · P5 thermal
+envelope (30–60 min realistic duty).
 
-**Exit:** parity with oracle on the full golden set incl. d1 typed
-answers · ≥ oracle speed on decision-contract prompts · resident set
-within profile budget.
+**Exit:** P1 numbers on a real phone (the go/no-go for on-device dual
+residency) · P2 works-or-documented-blocker on retail hardware · memory +
+thermal dashboards exist. *P2–P5 may resolve after S3 starts; they gate
+NPU promises, not the engine.*
+
+## S3 — lola-custom engine (K0–K8) — **the product** (ADR-003 rev.)
+
+Starts immediately after S2's golden set exists; full design in
+`docs/ENGINE.md`. K0 weights container + GGUF import/repack → K1 conv
+kernel → K2 SWA attention → K3 global attention + partial RoPE → K4
+gate/norm fusion → K5 d1 readout port → K6 dual-slot scheduler → K7
+wgpu/Vulkan (AMD laptops) → K8 NPU plugin ABI for our graph.
+
+**Exit:** each K-gate = oracle parity + SLO · e2e golden set passes on our
+kernels alone (oracle unplugged) · dual-slot duty cycle within thermal
+envelope on a reference phone.
 
 ## S4 — Memory & retrieval
 
@@ -130,10 +144,13 @@ escalations produce ledger-recorded investigations · loop p95 unaffected.
 ## Later (unordered)
 
 Nado (Inchain) adapter · strategy discovery ladder B0–B3 · specialist
-models (VL/Audio/Base) · Android target + Compose UI · mainnet
+models (VL/Audio/Base) · **Android app scaffold (Compose Multiplatform +
+UniFFI + cargo-ndk)** · "dreaming" consolidation job + beliefs layer
+(ADR-030) · **wasmi sandbox for untrusted third-party skills** · mainnet
 leverage-ladder unlock process · equities/ETFs reconsidered ·
-**Hexagon/QAIRT plugin (Snapdragon NPU)** · **LiteRT-Tensor plugin
-(Pixel 10+)** · **d1-Omni Q4 quantization** (unblocks omni pair on
-constrained devices) · voice/video frontends (media session entries
-already exist) · LFM Open License v1.0 legal review (blocking gate for
-any distribution).
+**Hexagon/QAIRT plugin for OUR graph (K8, gated on S2m P2/P3)** ·
+**LiteRT-Tensor plugin (Pixel 10+)** · **d1-Omni Q4 quantization**
+(unblocks omni pair on constrained devices) · DSpark-style drafter for
+LFM3-Omni (watch Liquid releases) · voice/video frontends (media session
+entries already exist) · LFM Open License v1.0 legal review (blocking
+gate for any distribution).

@@ -13,5 +13,6 @@
 //!    a measured decision, not a habit.
 
 pub mod config;
+pub mod engine;
 pub mod infer;
 pub mod residency;
