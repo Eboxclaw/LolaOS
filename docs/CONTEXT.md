@@ -21,7 +21,21 @@ Small-context (32K) mobile agent; every row is sourced.
 | 8 | Consolidate in the background ("dreaming"), never inline | Block the loop on memory maintenance | [Letta sleep-time](https://www.letta.com/blog/sleep-time-compute) · Anthropic |
 | 9 | FTS5 + graph + parsers first; embeddings only where lexical measurably fails | Vector DB by default; vendor memory leaderboards | Letta "plain files = 74% LoCoMo" · Hermes FTS5 |
 
-## 2. Skills (ADR-028): adopt the Agent Skills standard
+## 2. Skills ↔ tools linkage (ADR-033)
+
+Skills declare their tool needs via the standard's `allowed-tools` field
+(advisory in the spec, enforced by us: a skill's tools must exist in an
+enabled category of `config/tools.yaml`). Skills never ship their own
+tools; they compose existing categories. Past [`MAX_PROMPT_TOOLS`], the
+agent sees `search_tools(query)` rather than a tool list — same pattern as
+skills, and **native to the model**: LFM3's `defer_loading=True` keeps
+tool schemas out of the prompt until a search returns them as
+`tool_reference` (template injects `<additional_tools>`) — verified on the
+[LFM3-1.7B card](https://huggingface.co/LiquidAI/LFM3-1.7B). Native tools
+execute Kotlin-side via the UniFFI bridge (`docs/TOOLS.md` §3) with
+read-only/confirm-on-write posture.
+
+## 2b. Skills (ADR-028): adopt the Agent Skills standard
 
 Format: [agentskills.io spec](https://agentskills.io/specification.md)
 (open standard, Dec 2025; adopted by Codex/Cursor/Copilot/Gemini CLI/MS

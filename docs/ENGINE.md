@@ -87,21 +87,101 @@ turn first).
 3. **Perf gate**: a kernel that passes parity but misses its SLO stays
    off the hot path (oracle fallback) until it doesn't.
 
-## 5. Milestones K0–K8 (start immediately after S2's oracle)
+## 5. Milestones K0–K9 (start immediately after S2's oracle)
 
 `K0` weights container + GGUF import + repack → `K1` conv kernel → `K2`
 SWA attention → `K3` global attention + partial RoPE → `K4` gate+norm
 fusion → `K5` d1 readout port → `K6` dual-slot scheduler → `K7`
 wgpu/Vulkan kernels → `K8` NPU plugin ABI **for our graph** (not ggml's;
 Hexagon plugin targets our ops, gated on the P2/P3 de-risk prototypes in
-`docs/MOBILE_FIRST.md`).
+`docs/MOBILE_FIRST.md`) → `K9` **LiquidCodec voice path**.
 
-## 6. Risks (owned here)
+### K9 — LiquidCodec (ADR-035)
+
+The ~74M streaming codec powering LFM3-Audio/Omni is itself built from
+LFM3 blocks — encoder *and* decoder ([blog](https://www.liquid.ai/blog/liquidcodec)).
+Consequences we exploit:
+
+- **Our K1–K3 kernels cover the codec** — the voice path is entirely our
+  engine: mic → causal encoder (streams; ~361× RT on one CPU thread) →
+  backbone token space → **GFSQ parallel multi-token prediction** (finite
+  scalar quantization over independent groups — speech-out is a few
+  parallel refinement steps, not a long autoregressive stream) →
+  direct spectral-prediction decoder (~87× RT one thread) → audio out.
+- **Placement**: codec pins to a LITTLE core; GPU/NPU stay with the
+  backbone. Decoder-only quantization-aware training makes the Q4_0
+  decoder 3.5× smaller with minimal quality loss — that's our default
+  (`config/models.yaml: codecs:`).
+- **Import**: codec builds (Q4_0/Q4_K_M/Q8_0) ship inside the official
+  GGUF releases → standard GGUF import + repack, checksummed.
+
+## 6. Model notes — the checkpoints we run
+
+Verified ✅ / verify-at-implementation ⚠️ (sources: Liquid docs + HF cards,
+Nov 2026 research; re-verify against the cards when S2 pins revisions).
+
+**d1-Omni-2B (slot A, decision)**
+- ✅ Single forward pass, zero generated tokens; `system_one(state,
+  questions, media)`; up to 16 questions per set (bigger = faster/word,
+  slightly less accurate); answers are noul P(yes) / choice (+multiple) /
+  score rubric 2–10 + extraction types (text/number/date spans, JSON
+  pointers, boxes ≤16).
+- ✅ Batch flags so state+media fit one batch: `-b 8192 -ub 8192`;
+  image ≤ half of `-ub` (≤2048 tok/image); video 2 fps.
+- ✅ Audio questions in, typed answers out — no transcript written.
+- ⚠️ Extraction/boxes/multiple readout only in transformers today → K5
+  ports from `modeling_d1_lfm3_omni.py`; llama.cpp covers noul/choice/
+  score only.
+
+**LFM3-Omni-2B (slot B, agent)** *(facts verified verbatim from the cards,
+Nov 2026)*
+- ✅ ChatML with `<|startoftext|>` BOS and `<|im_end|>` EOS; omni is
+  **non-reasoning** (`enable_thinking=True` unsupported) and *every
+  assistant turn opens with an empty `<think></think>`* — our prompt
+  builder reproduces this exactly.
+- ✅ **Tool calls (verbatim syntax)** — declared via the chat template
+  (`<tools>…</tools>` in the system turn); the model emits:
+
+  ```text
+  <tool_call>
+  <function=get_weather>
+  <parameter=city>
+  Paris
+  </parameter>
+  </function>
+  </tool_call>
+  ```
+
+  Non-string values are written as JSON. Results go back as a `tool`
+  message; keep the schemas attached on subsequent turns. The card's
+  official parser regexes (`<tool_call>/<function=name>/<parameter=p>`)
+  are the spec our parser implements. **Deferred tools**
+  (`defer_loading=True` → search returns `tool_reference` → template
+  injects `<additional_tools>`) — the model natively implements our
+  Tool Search / `search_tools` design.
+- ✅ Sampling (verbatim from cards): text output — greedy works well;
+  speech/interleaved — `audio_temperature=0.4`,
+  `audio_repetition_penalty=1.2`. ⚠️ `audio_top_k` is **not documented**
+  for omni (the 128/rep-window values are Audio-2B's); the GGUF stores
+  the card's audio params.
+- ✅ Media markers: `<|vision_start|>/<|vision_end|>`, `<|audio_out|>`,
+  `<|audio_start|>`, `<|mixed_start|>`; mmproj ships as **Q8_0**
+  (`mmproj-LFM3-Omni-2B-Q8_0.gguf`); serve flags: `--reasoning off
+  --temp 0`; ASR pattern `-sys "…" -p "<__media__>"`; realtime voice +
+  tool calls on `/v1/realtime` (b11960+).
+- ✅ 32K context ceiling; generation modes text/audio/interleaved;
+  streaming causal audio encoder (~50 ms-class TTFT speech-in); video
+  locked at 2 fps, 4–384 frames (`--video-fps` ignored).
+- ⚠️ No DSpark speculative drafter for omni yet — watch Liquid releases.
+
+## 7. Risks (owned here)
 
 - d1 readout internals undocumented → port from modeling files; the K5
   gate is parity vs the d1 API on the same checkpoints.
 - Quant-mix quality unknown until measured → K0 benchmarks decide; the
   oracle is always the correctness floor.
-- Solo-kernel velocity: 9 milestones is real engineering; the oracle
+- Solo-kernel velocity: 10 milestones is real engineering; the oracle
   keeps the harness shippable while kernels land one by one (that is the
   entire point of the oracle discipline).
+- Codec parity: K9's gate is ViSQOL/mel-distance vs the official codec
+  builds on a fixed speech corpus.

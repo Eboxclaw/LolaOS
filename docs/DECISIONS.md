@@ -230,3 +230,37 @@ actions (explain / escalate / kill switch / support pass) trigger tools
 and retrieval; references travel as identifiers; payloads enter context
 only through the support-pass gate. Requirements recorded in UI_UX.md;
 visual design still future.
+
+---
+
+*Tool layer + LiquidCodec round (2026-11-12; one verification agent for
+Android APIs/permissions + LFM3 tool-call syntax).*
+
+**ADR-033 — Categorized tool registry; read-only default with
+confirm-on-write.** Tools live in stable categories (`calendar,
+time_alarm, notifications, device, files, media, apps, accessibility,
+memory, market, system` — append-only ids); the registry may grow large
+while the *prompt-injected* set stays ≤10 with `search_tools` beyond
+(Tool Search). Each tool carries a `SafetyTier`: **read-only** by default;
+**confirm-on-write** for every native write (agent proposes → human
+confirms in the UI); **gated** for policy-grant tools; **disabled**.
+`ToolSide` splits Core (Rust-resident: memory/market/system) from
+AndroidBridge (Kotlin-side via UniFFI). Config: `config/tools.yaml`.
+*Rejected:* full actuation; per-tool security theater prompts (the
+confirm-on-write flow is one deliberate tap, not a dialog per call).
+
+**ADR-034 — Accessibility category included, hard-gated, empty in v0.1.**
+The taxonomy reserves `accessibility` (other-app screen reading /
+actuation) because it is the most powerful native surface — but it ships
+disabled with zero tools, requires explicit special-access grant + policy
+version + per-action confirmation when it ever ships, and we accept the
+Play-review scrutiny that comes with it. *Rejected:* excluding the
+category slot entirely (would force a taxonomy break later).
+
+**ADR-035 — LiquidCodec is a first-class engine component (K9).** The
+~74M codec's encoder and decoder are built from LFM3 blocks, so our K1–K3
+kernels cover it; GFSQ makes speech-out a few parallel refinement steps
+(ideal for phones); the codec pins to a LITTLE core (361×/87× RT on one
+thread); decoder-only QAT Q4_0 (3.5× smaller) is the default; codec
+builds import through the standard GGUF pipeline. Registered in
+`models.yaml: codecs:`; milestone K9 added.

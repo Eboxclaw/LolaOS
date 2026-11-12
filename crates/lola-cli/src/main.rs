@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use lola_harness::config::RiskConfig;
+use lola_harness::config::{RiskConfig, ToolsConfig};
 use lola_infer::config::ModelsConfig;
 use lola_infer::residency;
 use lola_memory::config::MemoryConfig;
@@ -51,6 +51,7 @@ fn doctor(config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let models = ModelsConfig::parse(&read_config(config_dir, "models.yaml")?)?;
     let memory = MemoryConfig::parse(&read_config(config_dir, "memory.yaml")?)?;
     let risk = RiskConfig::parse(&read_config(config_dir, "risk.yaml")?)?;
+    let tools = ToolsConfig::parse(&read_config(config_dir, "tools.yaml")?)?;
     let venue: VenueConfig = serde_yaml::from_str(&read_config(config_dir, "venue.yaml")?)?;
 
     println!("LOLA doctor");
@@ -127,6 +128,32 @@ fn doctor(config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         risk.mainnet.ladder.len()
     );
     println!("  compute     : tier-1 only — Rust CPU (AVX2/512·NEON) + Vulkan/wgpu; Adreno probes → CPU fallback");
+
+    // Categorized native tool registry (ADR-033/034).
+    let enabled = tools.enabled_categories();
+    println!(
+        "  tools       : {} categories ({} enabled) · {} tools · read-only default + confirm-on-write",
+        tools.categories.len(),
+        enabled.len(),
+        tools.tool_count()
+    );
+    for category in &enabled {
+        println!(
+            "    {:<14} {} tools [{}]",
+            category.category.id(),
+            category.tools.len(),
+            category
+                .safety_override
+                .map(|s| format!("{s:?}"))
+                .unwrap_or_else(|| "default safety".into())
+        );
+    }
+    if let Some(codec) = models.codecs.first() {
+        println!(
+            "  codec       : {} @ {} (~{} MB) — K9 voice path",
+            codec.codec_id, codec.default_quantization, codec.est_ram_mb
+        );
+    }
 
     let replay = lola_replay::ReplayConfig::default();
     println!(

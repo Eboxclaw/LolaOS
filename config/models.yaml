@@ -12,7 +12,7 @@ models:
     backend: reference-llamacpp
     context_limit: 131072
     est_ram_mb: 1850
-    mmproj: mmproj-d1-omni-2b-f16.gguf
+    mmproj: mmproj-d1-Omni-2B-Q8_0.gguf   # verified: projector ships as Q8_0
   - model_id: lfm3-omni-2b
     repository: LiquidAI/LFM3-Omni-2B-GGUF
     role: agent
@@ -21,7 +21,7 @@ models:
     backend: reference-llamacpp
     context_limit: 32768      # omni ceiling
     est_ram_mb: 1100
-    mmproj: mmproj-lfm3-omni-2b-f16.gguf
+    mmproj: mmproj-LFM3-Omni-2B-Q8_0.gguf # verified: projector ships as Q8_0
   # --- text pair (constrained profile fallback; same slots) -------------
   - model_id: d1-2b
     repository: LiquidAI/d1-2B-GGUF
@@ -43,3 +43,14 @@ registered:
   - { model_id: lfm3-vl-2b,     repository: LiquidAI/LFM3-VL-2B-GGUF,     role: specialist, modality: text, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1100 }
   - { model_id: lfm3-audio-2b,  repository: LiquidAI/LFM3-Audio-2B-GGUF,  role: specialist, modality: text, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1100 }
   - { model_id: lfm3-1.7b-base, repository: LiquidAI/LFM3-1.7B-Base,      role: specialist, modality: text, quantization: bf16,   backend: none, context_limit: 262144, est_ram_mb: 4000 }
+
+# LiquidCodec (~74M streaming codec; ships inside the Audio/Omni GGUF
+# releases). Encoder+decoder are LFM3 blocks — our K1–K3 kernels cover
+# them (K9, ADR-035). Decoder-only QAT makes Q4_0 3.5x smaller with
+# minimal quality loss.
+codecs:
+  - codec_id: liquidcodec
+    repository: LiquidAI/LFM3-Omni-2B-GGUF
+    quantizations: [q4_0, q4_k_m, q8_0]
+    default_quantization: q4_0
+    est_ram_mb: 80

@@ -80,9 +80,12 @@ own dual-slot scheduler.** llama.cpp is external to the shipped system:
    golden parity.
 
 **Omni hosting rules:** mmproj encoder towers + LiquidCodec **pinned to
-CPU** (codec decodes ~87× realtime on one thread; keeps GPU/NPU for the
-backbone); streaming causal audio encoder enables ~50 ms TTFT speech-in;
-video slices at 2 fps.
+CPU — a LITTLE core** (codec encodes ~361× / decodes ~87× realtime on one
+thread; GFSQ makes speech-out a few parallel refinement steps); streaming
+causal audio encoder enables ~50 ms TTFT speech-in; video slices at 2
+fps. Codec is a first-class engine component (**K9**, ADR-035): decoder
+Q4_0 default (3.5× smaller via decoder-only QAT), imported from the GGUF
+releases through the standard pipeline (`models.yaml: codecs:`).
 
 ## 5. SLOs (budgets, not promises; CI-enforced regressions)
 

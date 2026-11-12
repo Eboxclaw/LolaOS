@@ -1,0 +1,75 @@
+# Categorized tool registry (ADR-033/034, docs/TOOLS.md).
+# Categories are append-only; each grows its tool list over time.
+# Posture: read-only by default; writes confirm-on-write; accessibility
+# hard-gated and EMPTY in v0.1.
+
+categories:
+  - category: calendar
+    enabled: true
+    tools:
+      - { name: calendar_list_events,  safety: read_only,        permissions: [android.permission.READ_CALENDAR] }
+      - { name: calendar_create_event, safety: confirm_on_write, permissions: [android.permission.WRITE_CALENDAR] }
+
+  - category: time_alarm
+    enabled: true
+    tools:
+      # NOTE: AlarmClock intents have NO read-back API — lola_next_tick
+      # reads only LOLA's own scheduled work (docs/TOOLS.md §2).
+      - { name: clock_now,       safety: read_only }
+      - { name: lola_next_tick,  safety: read_only }
+      - { name: alarm_set,       safety: confirm_on_write, permissions: [com.android.alarm.permission.SET_ALARM] }
+      - { name: timer_set,       safety: confirm_on_write, permissions: [com.android.alarm.permission.SET_ALARM] }
+
+  - category: notifications
+    enabled: true
+    tools:
+      - { name: notifications_recent, safety: read_only }            # NotificationListenerService (special access)
+      - { name: notification_reply,    safety: confirm_on_write }    # RemoteInput action
+
+  - category: device
+    enabled: true
+    tools:
+      - { name: battery_status, safety: read_only }
+      - { name: screen_state,   safety: read_only }
+      - { name: network_state,  safety: read_only, permissions: [android.permission.ACCESS_NETWORK_STATE] }
+      - { name: torch_toggle,   safety: confirm_on_write }
+
+  - category: files
+    enabled: true
+    tools:
+      - { name: files_pick, safety: read_only }    # SAF, user-driven picker
+
+  - category: media
+    enabled: true
+    tools:
+      - { name: mic_capture, safety: gated, permissions: [android.permission.RECORD_AUDIO] }  # feeds the omni voice path
+
+  - category: apps
+    enabled: true
+    tools:
+      - { name: app_launch, safety: confirm_on_write }
+
+  - category: accessibility
+    enabled: false          # ADR-034: hard-gated, empty in v0.1
+    safety_override: gated
+    tools: []
+
+  - category: memory
+    enabled: true
+    tools:
+      - { name: graph_query,    safety: read_only }
+      - { name: fts_search,     safety: read_only }
+      - { name: ledger_lookup,  safety: read_only }
+      - { name: casebank_lookup, safety: read_only }
+
+  - category: market
+    enabled: true
+    tools:
+      - { name: market_snapshot, safety: read_only }
+      - { name: backtest_run,    safety: gated }
+
+  - category: system
+    enabled: true
+    tools:
+      - { name: support_pass, safety: gated }
+      - { name: kill_switch,  safety: gated }

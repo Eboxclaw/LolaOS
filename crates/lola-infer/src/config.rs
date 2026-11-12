@@ -16,6 +16,21 @@ pub struct ModelsConfig {
     pub models: Vec<ModelEntry>,
     /// Metadata-only entries; not loadable until their slice lands.
     pub registered: Vec<ModelEntry>,
+    /// Streaming audio codecs (LiquidCodec) powering the omni voice path —
+    /// first-class engine components (K9, ADR-035).
+    #[serde(default)]
+    pub codecs: Vec<CodecEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CodecEntry {
+    pub codec_id: String,
+    /// Codec builds ship inside the Audio/Omni GGUF releases.
+    pub repository: String,
+    pub quantizations: Vec<String>,
+    /// Decoder-only QAT: Q4_0 is 3.5× smaller with minimal quality loss.
+    pub default_quantization: String,
+    pub est_ram_mb: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -78,5 +93,15 @@ mod tests {
         let text_agent = config.find("lfm3-1.7b").expect("lfm3-1.7b registered");
         assert_eq!(text_agent.modality, Modality::Text);
         assert!(text_agent.mmproj.is_none());
+
+        // LiquidCodec is a first-class engine component (K9, ADR-035).
+        let codec = config
+            .codecs
+            .iter()
+            .find(|c| c.codec_id == "liquidcodec")
+            .expect("liquidcodec registered");
+        assert!(codec.quantizations.contains(&"q4_0".to_string()));
+        assert_eq!(codec.default_quantization, "q4_0");
+        assert!(codec.est_ram_mb < 150, "~74M params — tiny resident cost");
     }
 }

@@ -18,6 +18,7 @@ pass. S3 runs in parallel with S4–S7 (it never blocks them).
 | S7 | Experiment ladder A0–A3 (case bank in A2) | S4, S5, S6 |
 | S8 | HL testnet execution | S6, S7 |
 | S9 | Agent escalation (LFM3) | S2, S5 |
+| Sn | Native tool layer (categories + Kotlin bridge) | S1, Android app scaffold |
 
 ## S0 — Foundation ✅ (this session)
 
@@ -75,7 +76,9 @@ Starts immediately after S2's golden set exists; full design in
 `docs/ENGINE.md`. K0 weights container + GGUF import/repack → K1 conv
 kernel → K2 SWA attention → K3 global attention + partial RoPE → K4
 gate/norm fusion → K5 d1 readout port → K6 dual-slot scheduler → K7
-wgpu/Vulkan (AMD laptops) → K8 NPU plugin ABI for our graph.
+wgpu/Vulkan (AMD laptops) → K8 NPU plugin ABI for our graph → **K9
+LiquidCodec voice path** (encoder · GFSQ parallel prediction · spectral
+decoder; reuses K1–K3).
 
 **Exit:** each K-gate = oracle parity + SLO · e2e golden set passes on our
 kernels alone (oracle unplugged) · dual-slot duty cycle within thermal
@@ -140,6 +143,19 @@ loop reading the ledger and graph.
 
 **Exit:** agent invoked only on escalation-worthy states (measured) ·
 escalations produce ledger-recorded investigations · loop p95 unaffected.
+
+## Sn — Native tool layer (ADR-033/034)
+
+UniFFI tool-call bridge (Rust core ⇄ Kotlin executor) · runtime-permission
+flow + confirm-on-write FAB UI · first read-only categories live
+(calendar / time_alarm / notifications / device) · `search_tools` once
+the registry passes [`MAX_PROMPT_TOOLS`] · accessibility stays empty and
+gated. Depends on the Android app scaffold (Later).
+
+**Exit:** agent lists events / next alarm / recent notifications via
+tools on a real device · every write shows exactly one confirmation tap ·
+tool results enter context only through the support-pass gate ·
+permissions requested lazily per tool.
 
 ## Later (unordered)
 

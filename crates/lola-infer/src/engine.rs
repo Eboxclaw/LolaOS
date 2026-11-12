@@ -56,6 +56,15 @@ pub enum EngineOp {
     GatedMlp,
     /// d1 typed-answer readout (ported from `modeling_d1_lfm3_*.py`).
     D1Readout,
+    /// LiquidCodec causal audio encoder — LFM3-block streaming encoder
+    /// (K1–K3 kernels reused); ~361× realtime on one CPU thread.
+    CausalAudioEncoder,
+    /// GFSQ audio-token prediction — parallel multi-token refinement over
+    /// independent codebook groups (not a long autoregressive stream).
+    GfsqPredictor,
+    /// Direct spectral-prediction decoder — LFM3 blocks; decoder-only QAT
+    /// Q4_0 build is 3.5× smaller with minimal quality loss.
+    SpectralDecoder,
 }
 
 impl EngineOp {
@@ -67,6 +76,9 @@ impl EngineOp {
             Self::GlobalAttention => KernelMilestone::K3GlobalAttention,
             Self::HeadGate | Self::SandwichNorm => KernelMilestone::K4GateNormFusion,
             Self::D1Readout => KernelMilestone::K5D1Readout,
+            Self::CausalAudioEncoder | Self::GfsqPredictor | Self::SpectralDecoder => {
+                KernelMilestone::K9CodecPath
+            }
             Self::TiedEmbedding | Self::GatedMlp | Self::Q4Matmul => {
                 KernelMilestone::K0WeightsContainer
             }
@@ -202,10 +214,14 @@ pub enum KernelMilestone {
     K6DualSlotScheduler,
     K7VulkanWgpu,
     K8PluginAbi,
+    /// LiquidCodec voice path: causal encoder → GFSQ parallel prediction →
+    /// spectral decoder. Reuses K1–K3 tri-hybrid kernels (the codec's
+    /// encoder and decoder are built from the same LFM3 blocks).
+    K9CodecPath,
 }
 
 impl KernelMilestone {
-    pub const ALL: [KernelMilestone; 9] = [
+    pub const ALL: [KernelMilestone; 10] = [
         Self::K0WeightsContainer,
         Self::K1ConvKernel,
         Self::K2SwaAttention,
@@ -215,6 +231,7 @@ impl KernelMilestone {
         Self::K6DualSlotScheduler,
         Self::K7VulkanWgpu,
         Self::K8PluginAbi,
+        Self::K9CodecPath,
     ];
 
     pub fn stage(self) -> &'static str {
@@ -228,6 +245,7 @@ impl KernelMilestone {
             Self::K6DualSlotScheduler => "dual-slot scheduler (prefill burst + streaming)",
             Self::K7VulkanWgpu => "wgpu/Vulkan kernels (AMD, Tensor Mali)",
             Self::K8PluginAbi => "NPU plugin ABI for our graph",
+            Self::K9CodecPath => "LiquidCodec voice path (encoder · GFSQ · decoder)",
         }
     }
 }
