@@ -9,8 +9,9 @@
 //! - [`lifecycle`] — Android-first loop lifecycle (ADR-025)
 //! - [`skills`]    — Agent Skills standard adoption (ADR-028)
 //! - [`persona`]   — prompt-as-ledger personality (ADR-029)
+//! - [`router`]    — pass-forward reference tables (ADR-036)
 //! - [`risk`]      — ring 0: deterministic, fail-closed
-//! - [`config`]    — `config/risk.yaml`
+//! - [`config`]    — `config/risk.yaml` + `config/tools.yaml`
 //! - [`features`]  — feature-engine types and availability rules
 
 pub mod config;
@@ -21,6 +22,7 @@ pub mod features;
 pub mod lifecycle;
 pub mod persona;
 pub mod risk;
+pub mod router;
 pub mod session;
 pub mod skills;
 pub mod tools;

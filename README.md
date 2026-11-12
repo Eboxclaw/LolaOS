@@ -7,12 +7,20 @@ process, no sidecars, mobile constraints respected from day one.
 > deterministically when possible, spend model inference only where it
 > creates value, record everything, improve from outcomes.
 
-- [RFC-002 — Architecture](docs/RFC-002.md)
-- [HARNESS — The OS kernel](docs/HARNESS.md)
-- [MEMORY — Storage, knowledge graph, retrieval](docs/MEMORY.md)
-- [NANO_RIPL — Inference layer](docs/NANO_RIPL.md)
-- [ROADMAP — Pizza slices & exit criteria](docs/ROADMAP.md)
-- [DECISIONS — ADR log](docs/DECISIONS.md)
+**Architecture & kernel:** [RFC-002 — Architecture](docs/RFC-002.md) ·
+[HARNESS — the OS kernel](docs/HARNESS.md) ·
+[ROUTER — pass-forward reference tables](docs/ROUTER.md)
+
+**Memory & agent:** [MEMORY — storage, knowledge graph, retrieval](docs/MEMORY.md) ·
+[CONTEXT — discipline, skills, personality, improvement](docs/CONTEXT.md) ·
+[TOOLS — categorized native tool layer](docs/TOOLS.md)
+
+**Inference & mobile:** [ENGINE — our LFM3-specialized engine](docs/ENGINE.md) ·
+[NANO_RIPL — model pairs, residency, compute tiers](docs/NANO_RIPL.md) ·
+[MOBILE_FIRST — deployment, budgets, de-risking](docs/MOBILE_FIRST.md)
+
+**Process:** [ROADMAP — slices & exit criteria](docs/ROADMAP.md) ·
+[DECISIONS — ADR log 001–036](docs/DECISIONS.md)
 
 ## Status
 

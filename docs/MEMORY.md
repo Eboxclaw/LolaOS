@@ -90,9 +90,9 @@ metric; all steps deterministic (no vectors in v0.1).
 
 ```
  1. decision cache ──hit──► serve (never bypasses risk)
-        │ miss          [8 exact dependencies must match:
-        ▼                snapshot·schema·strategy·checkpoint·
- 2. signature lookup      adapter·policy·instrument·timeframe]
+        │ miss          [9 exact dependencies must match:
+        ▼                snapshot·feature-schema·question-schema·strategy·
+ 2. signature lookup      checkpoint·adapter·policy·instrument·timeframe]
         │ miss
         ▼
  3. instrument+strategy history (indexed SQL, recent N)

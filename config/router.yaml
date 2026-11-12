@@ -1,0 +1,69 @@
+# Pass-forward reference tables (ADR-036, docs/ROUTER.md).
+# TWO TABLES, TWO OWNERS:
+#   schemas  — shown TO d1: named questions + criteria/rubrics
+#   policies — harness-only: thresholds (on CALIBRATED scores),
+#              destinations, hard budgets. The model never sees these.
+# Thresholds below are PROVISIONAL until S5 calibration reports exist;
+# after that they change only via versioned policy bumps.
+
+schemas:
+  - schema_id: tick-decision-v1
+    decision_point: tick_decision
+    version: 1
+    questions:
+      - name: market_regime
+        kind:
+          type: choice
+          criteria:
+            up_trend: "Higher highs/lows across 1h and 5m; EMA alignment positive"
+            range: "Bounded oscillation, no directional structure"
+            down_trend: "Lower highs/lows; EMA alignment negative"
+            high_volatility: "Volatility expanding beyond 2x its rolling median"
+      - { name: candidate_acceptable,  kind: { type: noul } }
+      - { name: data_sufficient,       kind: { type: noul } }
+      - { name: volatility_expanding,  kind: { type: noul } }
+
+  - schema_id: context-gate-v1
+    decision_point: context_gate
+    version: 1
+    questions:
+      - name: relevance
+        kind:
+          type: score
+          levels: [irrelevant, marginal, relevant, critical]
+      - { name: freshness_ok, kind: { type: noul } }
+      - { name: conflicts_history, kind: { type: noul } }
+
+  - schema_id: escalation-gate-v1
+    decision_point: escalation_gate
+    version: 1
+    questions:
+      - { name: novel_state,      kind: { type: noul } }
+      - { name: conflicts_strong_pattern, kind: { type: noul } }
+      - { name: research_needed,  kind: { type: noul } }
+
+policies:
+  - decision_point: tick_decision
+    version: 1
+    routes:
+      - { answer_name: market_regime,        destination: pass_to_risk, min_calibrated: 0.55 }
+      - { answer_name: candidate_acceptable, destination: pass_to_risk, min_calibrated: 0.60 }
+      - { answer_name: data_sufficient,      destination: ledger_only,  min_calibrated: 0.50 }
+      - { answer_name: volatility_expanding, destination: ledger_only,  min_calibrated: 0.50 }
+    limits: { agent_context_tokens_per_turn: 2048, escalations_per_hour: 6, fail_closed: true }
+
+  - decision_point: context_gate
+    version: 1
+    routes:
+      - { answer_name: relevance,        destination: pass_to_agent_context, min_calibrated: 0.70 }  # PROVISIONAL
+      - { answer_name: freshness_ok,     destination: ledger_only,            min_calibrated: 0.50 }
+      - { answer_name: conflicts_history, destination: ledger_only,           min_calibrated: 0.50 }
+    limits: { agent_context_tokens_per_turn: 2048, escalations_per_hour: 6, fail_closed: true }
+
+  - decision_point: escalation_gate
+    version: 1
+    routes:
+      - { answer_name: novel_state,             destination: escalate_agent, min_calibrated: 0.60 }  # PROVISIONAL
+      - { answer_name: conflicts_strong_pattern, destination: escalate_agent, min_calibrated: 0.60 }  # PROVISIONAL
+      - { answer_name: research_needed,         destination: escalate_agent, min_calibrated: 0.65 }  # PROVISIONAL
+    limits: { agent_context_tokens_per_turn: 2048, escalations_per_hour: 6, fail_closed: true }

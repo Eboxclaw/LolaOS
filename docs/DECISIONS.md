@@ -264,3 +264,25 @@ kernels cover it; GFSQ makes speech-out a few parallel refinement steps
 thread); decoder-only QAT Q4_0 (3.5× smaller) is the default; codec
 builds import through the standard GGUF pipeline. Registered in
 `models.yaml: codecs:`; milestone K9 added.
+
+---
+
+*Router round (2026-11-12). Owner framing challenged and settled:
+"encoder/router" → **calibrated scoring head + deterministic table**.*
+
+**ADR-036 — d1 = calibrated scoring head; routing = deterministic
+pass-forward policy owned by the harness.** Two tables, two owners:
+*question schemas* (named questions + criteria/rubrics, versioned) are
+shown to the model so answers stay consistent and cacheable;
+*pass-forward policies* (destinations, thresholds on **calibrated**
+scores, hard budgets: context tokens/turn, escalations/hour, ≤16
+questions/set) are harness-only — the model never sees its limits, so it
+cannot game them. Missing/unknown answers and over-budget passes fail
+closed; every route is a ledger row. Thresholds are PROVISIONAL
+conservative constants until S5 calibration reports exist, then change
+only via versioned policy bumps. `question_schema_version` joins the
+decision-cache invalidation set (9 dependencies) — schema drift
+invalidates cached answers. *Rejected:* model-sees-its-own-rules
+(confidence inflation around thresholds, unauditable routing); fully
+configurable thresholds pre-calibration (tuning against noise); the
+"encoder" framing (hides schema + calibration drift).

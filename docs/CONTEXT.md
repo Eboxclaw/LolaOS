@@ -104,3 +104,8 @@ filtering (CRAG role), query-complexity routing (Adaptive-RAG role), and
 context compression decisions (LLMLingua-2 role) — as typed answers with
 probabilities instead of token classifiers. No prior art found for this
 composition; worth an external write-up once S5 produces calibration data.
+
+**Formal contract:** [ROUTER.md](ROUTER.md) (ADR-036) — question schemas
+shown to the model; pass-forward policy (thresholds on calibrated scores,
+destinations, budgets) harness-only. Model proposes scores; policy
+disposes.

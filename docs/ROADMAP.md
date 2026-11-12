@@ -97,11 +97,15 @@ zero hash-loss · cache invalidates on every dependency change.
 ## S5 — d1 shadow mode
 
 d1 classifies real (or S6-backfilled) HL candles; labels from deterministic
-rules; calibration report (ECE/Brier per regime, abstention rate).
+rules; calibration report (ECE/Brier per regime, abstention rate). The
+router's pass-forward reference tables (`config/router.yaml`, ADR-036)
+already scaffold the S1 loop; S5 is what makes their numbers real.
 
 **Exit:** calibration report exists and is versioned · explicit go/no-go
-decision recorded in `DECISIONS.md` before d1 may act in A1 · d1
-probabilities are never displayed as trade-profit probabilities.
+decision recorded in `DECISIONS.md` before d1 may act in A1 · **router
+thresholds unlocked: PROVISIONAL constants replaced via versioned policy
+bumps backed by ECE per answer type** · d1 probabilities are never
+displayed as trade-profit probabilities.
 
 ## S6 — Hyperliquid market data
 

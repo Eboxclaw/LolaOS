@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 use lola_harness::config::{RiskConfig, ToolsConfig};
+use lola_harness::router::RouterConfig;
 use lola_infer::config::ModelsConfig;
 use lola_infer::residency;
 use lola_memory::config::MemoryConfig;
@@ -52,6 +53,7 @@ fn doctor(config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let memory = MemoryConfig::parse(&read_config(config_dir, "memory.yaml")?)?;
     let risk = RiskConfig::parse(&read_config(config_dir, "risk.yaml")?)?;
     let tools = ToolsConfig::parse(&read_config(config_dir, "tools.yaml")?)?;
+    let router = RouterConfig::parse(&read_config(config_dir, "router.yaml")?)?;
     let venue: VenueConfig = serde_yaml::from_str(&read_config(config_dir, "venue.yaml")?)?;
 
     println!("LOLA doctor");
@@ -152,6 +154,24 @@ fn doctor(config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "  codec       : {} @ {} (~{} MB) — K9 voice path",
             codec.codec_id, codec.default_quantization, codec.est_ram_mb
+        );
+    }
+
+    // Pass-forward routing tables (ADR-036): d1 = scoring head, harness routes.
+    println!(
+        "  router      : {} schemas / {} policies — model blind, fail-closed, budgets enforced",
+        router.schemas.len(),
+        router.policies.len()
+    );
+    for schema in &router.schemas {
+        let policy = router.policy_for(schema.decision_point);
+        println!(
+            "    {:<19} {} v{} · {} questions · {} routes [thresholds PROVISIONAL until S5]",
+            schema.decision_point.id(),
+            schema.schema_id,
+            schema.version,
+            schema.questions.len(),
+            policy.map_or(0, |p| p.routes.len())
         );
     }
 

@@ -17,6 +17,7 @@ pub const KNN_TOP_K: usize = 8;
 pub const CACHE_DEPENDENCIES: &[&str] = &[
     "snapshot_hash",
     "feature_schema_version",
+    "question_schema_version", // ADR-036: schema drift invalidates cached d1 answers
     "strategy_version",
     "model_checkpoint",
     "adapter_version",
@@ -50,7 +51,7 @@ pub struct RetrievalStats {
 // Compile-time invariants (clippy-clean alternative to constant asserts).
 const _: () = assert!(KNN_TOP_K > 0);
 const _: () = assert!(KNN_CANDIDATE_LIMIT >= KNN_TOP_K);
-const _: () = assert!(CACHE_DEPENDENCIES.len() == 8);
+const _: () = assert!(CACHE_DEPENDENCIES.len() == 9);
 
 #[cfg(test)]
 mod tests {
