@@ -10,9 +10,10 @@
 //! - [`skills`]    — Agent Skills standard adoption (ADR-028)
 //! - [`persona`]   — prompt-as-ledger personality (ADR-029)
 //! - [`router`]    — pass-forward reference tables (ADR-036)
-//! - [`risk`]      — ring 0: deterministic, fail-closed
+//! - [`risk`]      — ring 0: deterministic, fail-closed (S1: full evaluate)
+//! - [`strategy`]  — deterministic strategy stubs (A0 baseline)
 //! - [`config`]    — `config/risk.yaml` + `config/tools.yaml`
-//! - [`features`]  — feature-engine types and availability rules
+//! - [`features`]  — feature engine (S1: computation from closed bars)
 
 pub mod config;
 pub mod contracts;
@@ -25,6 +26,7 @@ pub mod risk;
 pub mod router;
 pub mod session;
 pub mod skills;
+pub mod strategy;
 pub mod tools;
 
 pub use error::{LolaError, Result};
