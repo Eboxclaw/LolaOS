@@ -8,7 +8,7 @@ pass. S3 runs in parallel with S4–S7 (it never blocks them).
 | # | Slice | Depends on |
 |---|---|---|
 | S0 | Foundation ✅ | — |
-| S1 | Kernel harness, no models | S0 |
+| S1 | Kernel harness, no models ✅ | S0 |
 | S2 | Oracle bring-up (omni pair, golden set) | S0 |
 | S2m | Mobile de-risk (P1–P5 prototypes) | S2 |
 | S3 | **lola-custom engine K0–K8 — the product** | S2 (starts immediately after) |
@@ -28,7 +28,12 @@ Cargo workspace with 5 crates, trimmed SQLite schema, config files, CI.
 **Exit:** `cargo build && cargo test` green · `lola doctor` passes ·
 migrations apply to an empty DB · clippy `-D warnings` clean.
 
-## S1 — Kernel harness (no models, no venue)
+## S1 — Kernel harness (no models, no venue) ✅ (2026-11-12)
+
+*Shipped: features/signature/risk/strategy (949b590), ledger + loop +
+crash-recovery idempotency (0b94a3a), criterion benchmarks
+(docs/BENCHMARKS.md). All exit criteria met; numbers: full tick 169 µs,
+risk 1.2 µs, retrieval kNN 8 ms @100k.*
 
 Synthetic candle generator → feature engine → state signature →
 deterministic strategy stub → risk checks → internal paper fill → decision

@@ -17,3 +17,10 @@ hex = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+
+[[bench]]
+name = "tick_bench"
+harness = false
+
+[dev-dependencies]
+criterion = { workspace = true }

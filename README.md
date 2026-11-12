@@ -20,14 +20,17 @@ process, no sidecars, mobile constraints respected from day one.
 [MOBILE_FIRST — deployment, budgets, de-risking](docs/MOBILE_FIRST.md)
 
 **Process:** [ROADMAP — slices & exit criteria](docs/ROADMAP.md) ·
-[DECISIONS — ADR log 001–036](docs/DECISIONS.md)
+[DECISIONS — ADR log 001–036](docs/DECISIONS.md) ·
+[BENCHMARKS — recorded numbers vs budgets](docs/BENCHMARKS.md)
 
 ## Status
 
-**S0 — Foundation + harness deep-dive** (see [ROADMAP](docs/ROADMAP.md)):
-docs, workspace with `lola-memory` / `lola-harness` / `lola-infer` /
-`lola-venue` / `lola-replay` / `lola-cli`, schema (0001+0002), omni-pair
-config. No engine code yet.
+**S1 — Kernel harness** (see [ROADMAP](docs/ROADMAP.md)): the full
+decision loop runs end-to-end on synthetic bars — features → signature →
+momentum strategy → 15-check risk → idempotent paper fills → ledger,
+with crash-recovery (replays never double-fill) and criterion benchmarks
+(full tick 169 µs; see [BENCHMARKS](docs/BENCHMARKS.md)). No model in the
+path yet — that is S2 (oracle bring-up) and S3 (our engine, K0–K9).
 
 ## Quickstart
 
