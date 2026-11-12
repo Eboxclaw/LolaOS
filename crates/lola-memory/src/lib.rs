@@ -6,6 +6,7 @@
 //! TTL. Nothing that made a decision is ever silently lost.
 //!
 //! Layout:
+//! - [`ledger`]     — single-writer ledger (idempotent orders, recovery)
 //! - [`persistence`] — WAL open + embedded, versioned migrations
 //! - [`config`]      — `config/memory.yaml` (profiles, pairs, TTL)
 //! - [`graph`]       — knowledge-graph node/edge types and traversal bounds
@@ -20,6 +21,7 @@ pub mod compaction;
 pub mod config;
 pub mod error;
 pub mod graph;
+pub mod ledger;
 pub mod persistence;
 pub mod retrieval;
 

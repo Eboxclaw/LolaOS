@@ -17,10 +17,12 @@
 
 pub mod config;
 pub mod contracts;
+pub mod decision_loop;
 pub mod error;
 pub mod events;
 pub mod features;
 pub mod lifecycle;
+pub mod metrics;
 pub mod persona;
 pub mod risk;
 pub mod router;
