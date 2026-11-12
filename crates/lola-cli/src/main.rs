@@ -34,6 +34,12 @@ enum Command {
         #[arg(long, default_value = "data/lola.db")]
         db: PathBuf,
     },
+    /// Run the golden conformance set against an inference backend
+    /// (S2.a: the deterministic golden double; S2.b: the real oracle).
+    Golden {
+        #[arg(long, default_value = "evals/golden/decision-contract-v1.json")]
+        set: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,6 +47,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Doctor => doctor(&cli.config_dir),
         Command::Migrate { db } => migrate(&db),
+        Command::Golden { set } => golden(&set),
+    }
+}
+
+fn golden(set_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use lola_infer::infer::Infer;
+    use lola_infer::oracle::{run_conformance, GoldenOracle, GoldenSet};
+
+    let set = GoldenSet::load(set_path)?;
+    println!("golden set  : {} ({} cases)", set.set_id, set.cases.len());
+    println!("provenance  : {}", set.provenance);
+    let oracle = GoldenOracle::from_set(&set);
+    let report = run_conformance(&oracle, &set);
+    for (case, failure) in &report.failures {
+        println!("  FAIL {case}: {failure:?}");
+    }
+    println!(
+        "conformance : {}/{} passed [backend: {}]",
+        report.passed,
+        report.total,
+        oracle.model_id()
+    );
+    if report.all_passed() {
+        println!("golden: OK");
+        Ok(())
+    } else {
+        Err(format!("{} golden case(s) failed", report.failures.len()).into())
     }
 }
 

@@ -1,0 +1,181 @@
+{
+  "set_id": "decision-contract-v1",
+  "schema_version": 1,
+  "provenance": "hand-authored-placeholder (until S2.c records oracle-llamacpp@>=b11960 outputs)",
+  "cases": [
+    {
+      "id": "uptrend-volume-confirmed",
+      "request": {
+        "state": {
+          "contract_version": "1.0",
+          "instrument_id": "HYPERLIQUID:BTC-PERP",
+          "timeframe": "5m",
+          "event_time_ns": 1794200000000000000,
+          "ingestion_time_ns": 1794200000100000000,
+          "feature_schema_version": "market-state-v1",
+          "state_signature": "5m|Positive|Normal|Healthy|momentum-v1",
+          "snapshot_hash": "a1b2c3d4e5f60718",
+          "features": {
+            "return_1": 0.0012,
+            "return_5": 0.0041,
+            "return_20": 0.0102,
+            "atr_pct": 0.018,
+            "volume_ratio": 1.34,
+            "spread_bps": 1.8,
+            "trend_state": "POSITIVE",
+            "volatility_state": "NORMAL",
+            "liquidity_state": "HEALTHY"
+          },
+          "candidate": {
+            "strategy_id": "momentum-v1",
+            "strategy_version": 1,
+            "action": "BUY"
+          },
+          "portfolio": {
+            "has_position": false,
+            "cash_available": "10000.00",
+            "exposure": "0.00",
+            "risk_state": "NORMAL"
+          }
+        },
+        "questions": [
+          { "name": "market_regime", "kind": "regime" },
+          { "name": "candidate_acceptable", "kind": "candidate_assessment" },
+          { "name": "data_sufficient", "kind": "data_sufficiency" }
+        ]
+      },
+      "expected": {
+        "contract_version": "1.0",
+        "decision_id": "golden-up-1",
+        "model_id": "d1-omni-2b",
+        "policy_version": "risk-1",
+        "market_regime": [
+          { "label": "UP_TREND", "probability": 0.78 },
+          { "label": "RANGE", "probability": 0.14 },
+          { "label": "DOWN_TREND", "probability": 0.05 },
+          { "label": "HIGH_VOLATILITY", "probability": 0.03 }
+        ],
+        "candidate_assessment": { "label": "ACCEPT_FOR_RISK_CHECK", "probability": 0.72 },
+        "data_sufficiency": { "label": "SUFFICIENT", "probability": 0.95 },
+        "risk_flags": [],
+        "reason_codes": ["TREND_ALIGNED", "LIQUIDITY_NORMAL"]
+      }
+    },
+    {
+      "id": "range-thin-liquidity",
+      "request": {
+        "state": {
+          "contract_version": "1.0",
+          "instrument_id": "HYPERLIQUID:BTC-PERP",
+          "timeframe": "5m",
+          "event_time_ns": 1794200150000000000,
+          "ingestion_time_ns": 1794200150100000000,
+          "feature_schema_version": "market-state-v1",
+          "state_signature": "5m|Neutral|Normal|Thin|momentum-v1",
+          "snapshot_hash": "b2c3d4e5f607189a",
+          "features": {
+            "return_1": 0.0002,
+            "return_5": -0.0003,
+            "return_20": 0.0004,
+            "atr_pct": 0.009,
+            "volume_ratio": 0.4,
+            "spread_bps": 22.0,
+            "trend_state": "NEUTRAL",
+            "volatility_state": "NORMAL",
+            "liquidity_state": "THIN"
+          },
+          "candidate": {
+            "strategy_id": "momentum-v1",
+            "strategy_version": 1,
+            "action": "BUY"
+          },
+          "portfolio": {
+            "has_position": false,
+            "cash_available": "10000.00",
+            "exposure": "0.00",
+            "risk_state": "NORMAL"
+          }
+        },
+        "questions": [
+          { "name": "market_regime", "kind": "regime" },
+          { "name": "candidate_acceptable", "kind": "candidate_assessment" },
+          { "name": "data_sufficient", "kind": "data_sufficiency" }
+        ]
+      },
+      "expected": {
+        "contract_version": "1.0",
+        "decision_id": "golden-range-1",
+        "model_id": "d1-omni-2b",
+        "policy_version": "risk-1",
+        "market_regime": [
+          { "label": "RANGE", "probability": 0.66 },
+          { "label": "UP_TREND", "probability": 0.12 },
+          { "label": "DOWN_TREND", "probability": 0.14 },
+          { "label": "HIGH_VOLATILITY", "probability": 0.08 }
+        ],
+        "candidate_assessment": { "label": "REJECT", "probability": 0.68 },
+        "data_sufficiency": { "label": "SUFFICIENT", "probability": 0.93 },
+        "risk_flags": ["LIQUIDITY_THIN", "SPREAD_WIDE"],
+        "reason_codes": ["THIN_LIQUIDITY"]
+      }
+    },
+    {
+      "id": "volatile-conflicted-history",
+      "request": {
+        "state": {
+          "contract_version": "1.0",
+          "instrument_id": "HYPERLIQUID:BTC-PERP",
+          "timeframe": "5m",
+          "event_time_ns": 1794200300000000000,
+          "ingestion_time_ns": 1794200300100000000,
+          "feature_schema_version": "market-state-v1",
+          "state_signature": "5m|Neutral|Expanding|Healthy|momentum-v1",
+          "snapshot_hash": "c3d4e5f607189ab2",
+          "features": {
+            "return_1": -0.0021,
+            "return_5": 0.0032,
+            "return_20": -0.0051,
+            "atr_pct": 0.041,
+            "volume_ratio": 2.9,
+            "spread_bps": 6.5,
+            "trend_state": "NEUTRAL",
+            "volatility_state": "EXPANDING",
+            "liquidity_state": "HEALTHY"
+          },
+          "candidate": {
+            "strategy_id": "momentum-v1",
+            "strategy_version": 1,
+            "action": "BUY"
+          },
+          "portfolio": {
+            "has_position": false,
+            "cash_available": "10000.00",
+            "exposure": "0.00",
+            "risk_state": "NORMAL"
+          }
+        },
+        "questions": [
+          { "name": "market_regime", "kind": "regime" },
+          { "name": "candidate_acceptable", "kind": "candidate_assessment" },
+          { "name": "data_sufficient", "kind": "data_sufficiency" }
+        ]
+      },
+      "expected": {
+        "contract_version": "1.0",
+        "decision_id": "golden-vol-1",
+        "model_id": "d1-omni-2b",
+        "policy_version": "risk-1",
+        "market_regime": [
+          { "label": "HIGH_VOLATILITY", "probability": 0.61 },
+          { "label": "RANGE", "probability": 0.18 },
+          { "label": "DOWN_TREND", "probability": 0.13 },
+          { "label": "UP_TREND", "probability": 0.08 }
+        ],
+        "candidate_assessment": { "label": "REVIEW_REQUIRED", "probability": 0.55 },
+        "data_sufficiency": { "label": "INSUFFICIENT", "probability": 0.52 },
+        "risk_flags": ["VOLATILITY_EXPANSION", "CONFLICTING_HISTORY"],
+        "reason_codes": ["ESCALATE_CANDIDATE"]
+      }
+    }
+  ]
+}

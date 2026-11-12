@@ -48,6 +48,12 @@ pub struct ModelEntry {
     /// Omni checkpoints ship encoder towers as an mmproj sidecar GGUF.
     #[serde(default)]
     pub mmproj: Option<String>,
+    /// Pinned GGUF filename (interchange format; repacked at install).
+    #[serde(default)]
+    pub gguf_file: Option<String>,
+    /// Pinned sha256 — filled by S2.c when weights are fetched/verified.
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 impl ModelsConfig {

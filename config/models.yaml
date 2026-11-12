@@ -5,6 +5,8 @@
 models:
   # --- omni pair (laptop profile default) -------------------------------
   - model_id: d1-omni-2b
+    gguf_file: d1-Omni-2B-Q8_0.gguf
+    sha256: TODO-S2c-verify
     repository: LiquidAI/d1-Omni-2B-GGUF
     role: decision
     modality: omni            # text + image + video + audio questions
@@ -14,6 +16,8 @@ models:
     est_ram_mb: 1850
     mmproj: mmproj-d1-Omni-2B-Q8_0.gguf   # verified: projector ships as Q8_0
   - model_id: lfm3-omni-2b
+    gguf_file: LFM3-Omni-2B-Q4_K_M.gguf
+    sha256: TODO-S2c-verify
     repository: LiquidAI/LFM3-Omni-2B-GGUF
     role: agent
     modality: omni            # text + image + video + audio in; text/speech out
@@ -24,6 +28,8 @@ models:
     mmproj: mmproj-LFM3-Omni-2B-Q8_0.gguf # verified: projector ships as Q8_0
   # --- text pair (constrained profile fallback; same slots) -------------
   - model_id: d1-2b
+    gguf_file: d1-2B-Q4_K_M.gguf
+    sha256: TODO-S2c-verify
     repository: LiquidAI/d1-2B-GGUF
     role: decision
     modality: text
@@ -32,6 +38,8 @@ models:
     context_limit: 131072
     est_ram_mb: 1100
   - model_id: lfm3-1.7b
+    gguf_file: LFM3-1.7B-Q4_K_M.gguf
+    sha256: TODO-S2c-verify
     repository: LiquidAI/LFM3-1.7B-GGUF
     role: agent
     modality: text

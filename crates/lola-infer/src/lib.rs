@@ -15,4 +15,5 @@
 pub mod config;
 pub mod engine;
 pub mod infer;
+pub mod oracle;
 pub mod residency;
