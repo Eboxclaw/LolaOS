@@ -26,7 +26,7 @@ gate; sandwich norm; 128K vocab; tied embeddings; MLP 7680.
 
 | EngineOp | What we implement | Why specialized | Milestone |
 |---|---|---|---|
-| `GatedConv7` | Streaming short-conv with constant 7-slot state per channel | No KV at all; state update is O(1) per token — Llama-style engines carry dead weight here | K1 |
+| `GatedConv7` | **Depthwise** gated short-conv (per-channel k=7 value+gate), constant 7-slot state — 8.5 µs/token measured; dense variant kept as pointwise/parity utility | No KV at all; O(in_ch×7) per token — measured ~800× cheaper than the dense reading, which is exactly why LFM3 uses it for 13/24 layers | K1 ✅ |
 | `SwaAttention` | Ring-buffer KV (fixed 256 slots), full-RoPE θ=1e4 | Bounded memory per head regardless of context; single flat buffer, no eviction logic | K2 |
 | `GlobalAttention` | GQA 16/4, partial RoPE (rotate only the high-frequency half of each head) | Partial rotation changes the RoPE kernel's inner loop; generic kernels do wasted work | K3 |
 | `HeadGate` | Per-head sigmoid gate fused into attention output | Near-free; fused avoids a whole tensor round-trip | K4 |

@@ -33,6 +33,24 @@ expected well under 2 ms. This measurement directly informs MEMORY.md
 optimization consideration #6 (kNN placement). Until S4 lands the numeric
 layout, treat 8 ms as the honest pre-engine ceiling.
 
+
+## S3 kernels — first engine numbers (K1, 2026-11-14)
+
+| Benchmark | Time | Iteration note |
+|---|---|---|
+| `conv7_step_2048x2048` (dense interpretation) | **6.77 ms** | 19.5 ms naive → 17.3 ms contiguous/alloc-free → 6.77 ms with the NEON dot kernel |
+| `conv7_depthwise_step_2048` (architecture-correct) | **8.48 µs** | O(in_ch × 7) per token — the LFM3 shape |
+
+**The finding that matters:** the dense interpretation is ~800× more
+expensive and physically impossible — 13 conv layers at 2048×2048×7 would
+be ~1.5 GB of weights, dwarfing the whole 2B budget. LFM3's gated short
+conv is **depthwise** (per-channel k=7, value+gate), which is also why
+only 6/24 layers carry long KV. The dense kernel stays in the codebase as
+a parity/pointwise utility; the depthwise one is the shipped shape
+(wiring confirmed against the checkpoint at K1 parity time). Invariants
+tested for both: step == scan, strict causality, constant-size state,
+SIMD-vs-scalar dot agreement.
+
 ## What is not measured yet (and why)
 
 - **d1 decision latency** — no model loaded until S2 (oracle bring-up).

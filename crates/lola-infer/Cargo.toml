@@ -15,3 +15,10 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+
+[[bench]]
+name = "kernels_bench"
+harness = false
+
+[dev-dependencies]
+criterion = { workspace = true }

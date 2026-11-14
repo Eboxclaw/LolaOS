@@ -14,7 +14,9 @@
 
 pub mod config;
 pub mod engine;
+pub mod gguf;
 pub mod infer;
+pub mod kernels;
 pub mod llamacpp;
 pub mod oracle;
 pub mod residency;

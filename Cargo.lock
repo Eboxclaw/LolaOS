@@ -1194,6 +1194,7 @@ dependencies = [
 name = "lola-infer"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "lola-harness",
  "lola-memory",
  "serde",
