@@ -40,6 +40,7 @@ layout, treat 8 ms as the honest pre-engine ceiling.
 |---|---|---|
 | `conv7_step_2048x2048` (dense interpretation) | **6.77 ms** | 19.5 ms naive → 17.3 ms contiguous/alloc-free → 6.77 ms with the NEON dot kernel |
 | `conv7_depthwise_step_2048` (architecture-correct) | **8.48 µs** | O(in_ch × 7) per token — the LFM3 shape |
+| `swa_step_full_window_16x4x128` (K2: SWA-256 attention core, GQA 16/4×128, window full) | **71.3 µs** | ring buffer never grows; NEON dots |
 
 **The finding that matters:** the dense interpretation is ~800× more
 expensive and physically impossible — 13 conv layers at 2048×2048×7 would
@@ -49,7 +50,9 @@ only 6/24 layers carry long KV. The dense kernel stays in the codebase as
 a parity/pointwise utility; the depthwise one is the shipped shape
 (wiring confirmed against the checkpoint at K1 parity time). Invariants
 tested for both: step == scan, strict causality, constant-size state,
-SIMD-vs-scalar dot agreement.
+SIMD-vs-scalar dot agreement. The SWA eviction test caught and fixed a
+real kernel bug (stale `out` buffer accumulation) before it could ever
+ship — the invariant tests are doing their job.
 
 ## What is not measured yet (and why)
 
