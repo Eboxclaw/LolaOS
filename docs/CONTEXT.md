@@ -109,3 +109,8 @@ composition; worth an external write-up once S5 produces calibration data.
 shown to the model; pass-forward policy (thresholds on calibrated scores,
 destinations, budgets) harness-only. Model proposes scores; policy
 disposes.
+
+**Future optimization (RESEARCH.md / SchemaWeaver):** slot B's XML tool
+calls can use schema-skeleton parallel decoding (`<function=name>`
+scaffold fixed, `<parameter>` values generated in parallel; 3.9× reported).
+Slot A needs nothing — d1's readout emits zero output tokens.

@@ -20,7 +20,8 @@ process, no sidecars, mobile constraints respected from day one.
 [MOBILE_FIRST — deployment, budgets, de-risking](docs/MOBILE_FIRST.md)
 
 **Process:** [ROADMAP — slices & exit criteria](docs/ROADMAP.md) ·
-[DECISIONS — ADR log 001–036](docs/DECISIONS.md) ·
+[DECISIONS — ADR log 001–037](docs/DECISIONS.md) ·
+[RESEARCH — filtered ledger, LFM-vertical](docs/RESEARCH.md) ·
 [BENCHMARKS — recorded numbers vs budgets](docs/BENCHMARKS.md)
 
 ## Status

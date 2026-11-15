@@ -35,6 +35,13 @@ broad contacts (Play-restricted; the Contact Picker is the compliant path
 when needed), background location (separate grant + Play policy),
 background clipboard (impossible without focus since A10).
 
+**Future interface classes** (roadmap Later): **AppFunctions** — Android
+16's mechanism for apps to expose callable functions, effectively local
+MCP servers (calendar/email/notes publishers; experimental, restricted
+system-agent access) — a fourth interface class alongside native APIs ·
+MCP · accessibility. Also later: **tool-result caching** (AgentSysBench:
+−35% redundant calls) as an extension of the decision cache + case bank.
+
 ## 3. The bridge (ADR-027/032/033)
 
 ```

@@ -286,3 +286,21 @@ invalidates cached answers. *Rejected:* model-sees-its-own-rules
 (confidence inflation around thresholds, unauditable routing); fully
 configurable thresholds pre-calibration (tuning against noise); the
 "encoder" framing (hides schema + calibration drift).
+
+---
+
+*Research-triage round (2026-11-15): owner-supplied dual-model agentic
+research, filtered per instruction "keep our vertical always on LFM
+models". Full ledger: docs/RESEARCH.md.*
+
+**ADR-037 — Research adoption policy: the vertical stays LFM.** External
+research is triaged into RESEARCH.md (adopted techniques / validated
+already-built / excluded) before anything touches the roadmap. Adopted:
+schema-skeleton decoding (slot B only — d1's zero-token readout supersedes
+it for slot A), argument-accuracy as an S5+/S9 metric, tool-result
+caching (extends decision cache + case bank), MLCommons agentic
+trajectory metrics for S2m/S9, AppFunctions as a future tool-interface
+class, SPORK read-only-gated later. Excluded: FunctionGemma/Qwen/Gemma as
+models, LiteRT-LM + ADK Kotlin as the runtime, vLLM/SGLang serving — each
+contradicts ADR-003 rev./017/018/027. The paper's open "routing head in a
+shared runtime" question is already answered by d1 + ADR-036.

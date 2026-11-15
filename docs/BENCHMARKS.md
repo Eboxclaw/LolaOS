@@ -63,6 +63,16 @@ ship — the invariant tests are doing their job.
   collects the phone baseline (anon RSS, thermal, tok/s during bursts).
 - **Compaction job cost** — S4.
 
+## Agentic metric frame (measurement policy for S2m/S9 — ADR-037)
+
+Per MLCommons Agentic Inference (2026-07) and the Nov-2026 edge study:
+measure **trajectories, not tokens** — time-to-first-action, time-to-first
+response token, task completion rate, tool-selection accuracy,
+**argument accuracy** (the known bottleneck: 63–84% vs 93–100% selection),
+end-to-end latency, peak RAM (both slots resident), energy, thermal decay
+over 30–50 repeated trials. Raw tokens/s of slot B alone is explicitly
+*not* a LOLA target metric.
+
 ## Regression policy
 
 `cargo bench --workspace` is the canonical run; significant regressions
