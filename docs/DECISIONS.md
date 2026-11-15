@@ -304,3 +304,30 @@ class, SPORK read-only-gated later. Excluded: FunctionGemma/Qwen/Gemma as
 models, LiteRT-LM + ADK Kotlin as the runtime, vLLM/SGLang serving — each
 contradicts ADR-003 rev./017/018/027. The paper's open "routing head in a
 shared runtime" question is already answered by d1 + ADR-036.
+
+---
+
+*Optimization-policy round (2026-11-15): fruits researched with measured
+micro-benchmarks (Apple M4 floor: 77 GB/s single-thread axpy vs our ~1 GB/s
+effective @64K); Liquid deep-dive informs strategy. Docs: OPTIMIZATIONS.md,
+LIQUID.md, LORD.md.*
+
+**ADR-038 — Benchmark-gated optimization policy.** Every optimization
+lands behind its measured gate; gates are not always speed — quality
+(golden token-identity, KL, ppl-Δ, needle-in-haystack), memory (RSS),
+energy (µJ/token), TTFT, and tail latency (p99 under concurrent load) are
+first-class gates. Anti-fruits are recorded to prevent wasted effort
+(#12 layer-skip: no evidence for hybrid stacks). Quality harness
+(gap #1) is built BEFORE the quantization fruits that depend on it.
+Fruit order: F1+F11 (attn restructure, 8–20× @64K headroom) → F2 (q8 KV,
+−73% memory) → F4 (SQLite pack) → F3/F6 (prefix-KV + d1 state-prefix) →
+F5 (NEON exp, Android) → F7 (prompt-lookup spec decoding).
+
+**ADR-039 — Liquid positioning.** LOLA builds the artifact Liquid's
+strategy leaves open: the Android-first **dual-model runtime** (d1 gate +
+LFM3 agent in one process) plus the **d1 calibration harness** nobody
+ships. Kernels are generic config-parameterized operators (LFM4
+insurance) positioned for upstream contribution (Vulkan/Adreno where
+llama.cpp is weak), benchmarked on Pipette surfaces. We complement, never
+fork: their models, their GGUFs, their fine-tune recipes; our runtime,
+ledger, router, and calibration tooling.

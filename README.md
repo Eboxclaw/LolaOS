@@ -23,6 +23,8 @@ process, no sidecars, mobile constraints respected from day one.
 [DECISIONS — ADR log 001–037](docs/DECISIONS.md) ·
 [RESEARCH — filtered ledger, LFM-vertical](docs/RESEARCH.md) ·
 [LORD — the interface & mascot](docs/LORD.md) ·
+[OPTIMIZATIONS — benchmark-gated fruits](docs/OPTIMIZATIONS.md) ·
+[LIQUID — deep dive & positioning](docs/LIQUID.md) ·
 [BENCHMARKS — recorded numbers vs budgets](docs/BENCHMARKS.md)
 
 ## Status

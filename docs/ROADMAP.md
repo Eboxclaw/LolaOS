@@ -72,7 +72,8 @@ envelope (30–60 min realistic duty).
 
 **Exit:** P1 numbers on a real phone (the go/no-go for on-device dual
 residency) · P2 works-or-documented-blocker on retail hardware · memory +
-thermal dashboards exist. *P2–P5 may resolve after S3 starts; they gate
+thermal dashboards exist · **benchmarked on Pipette surfaces** (the
+numbers Liquid reads — LIQUID.md §7). *P2–P5 may resolve after S3 starts; they gate
 NPU promises, not the engine.*
 
 ## S3 — lola-custom engine (K0–K8) — **the product** (ADR-003 rev.)
@@ -165,6 +166,24 @@ gated. Depends on the Android app scaffold (Later).
 tools on a real device · every write shows exactly one confirmation tap ·
 tool results enter context only through the support-pass gate ·
 permissions requested lazily per tool.
+
+## Fruits — benchmark-gated optimization slices (ADR-038, docs/OPTIMIZATIONS.md)
+
+- **SB** — Benchmark-harness expansion (gates first): quality mode on the
+  golden harness (token-identity, KL, ppl-Δ, needle-in-haystack @32K/64K),
+  TTFT session scripts, p99 write-loop, energy wrapper (powermetrics/
+  perfetto), engine `bench` subcommand for Android parity.
+- **F1+F11** — global-attn accumulation restructure + KV SoA layout
+  (est. 8–20× @64K against the measured 77 GB/s floor; KL + token-identity
+  gates).
+- **F2** — q8_0 KV for the 6 global layers (−73% memory; NIAH + ppl gates
+  from SB).
+- **F4** — SQLite pack (NORMAL, prepare_cached, batched decision txns,
+  checkpoint off-thread; p99 gate).
+- **F3/F6** — prefix-KV session persistence + d1 state-prefix caching
+  (TTFT gates; KV-hash correctness).
+- **F5/F7** — NEON exp (Android-weighted) + prompt-lookup speculative
+  decoding (accept-rate ≥ 1.5 gate before enabling).
 
 ## Later (unordered)
 
