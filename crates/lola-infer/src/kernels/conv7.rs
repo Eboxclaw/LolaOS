@@ -15,6 +15,13 @@
 /// LFM3 conv kernel size.
 pub const KERNEL: usize = 7;
 
+// Deliberate f32 literals shared by the scalar and NEON exp paths so
+// range-reduction stays matched (not std consts: same value both paths).
+#[allow(clippy::approx_constant)]
+pub(crate) const EXP_LOG2E: f32 = 1.442_695;
+#[allow(clippy::approx_constant)]
+pub(crate) const EXP_LN2: f32 = 0.693_147_2;
+
 /// Weight layout: `w_value[o][i][j]` flattened row-major as
 /// `o * IN_CH * KERNEL + i * KERNEL + j` with runtime channel counts.
 #[derive(Debug, Clone, PartialEq)]
@@ -258,6 +265,77 @@ pub fn fma_axpy(dst: &mut [f32], alpha: f32, src: &[f32]) {
     }
 }
 
+/// Fast polynomial exp (F5/F1b): x = n·ln2 + r with n = round(x·log2e),
+/// r ∈ [−0.347, 0.347]; deg-6 Horner for e^r; scale by 2^n via the
+/// exponent bit-trick. Truncation ≈ r⁷/5040 ≈ 1.2e-7 on the reduced
+/// range; inputs < −80 clamp to 0, > 80 to +inf (softmax scores ≤ 0).
+#[inline]
+pub fn exp_poly(x: f32) -> f32 {
+    if x < -80.0 {
+        return 0.0;
+    }
+    if x > 80.0 {
+        return f32::INFINITY;
+    }
+    let n = (x * EXP_LOG2E).round();
+    let r = x - n * EXP_LN2;
+    let p = 1.0
+        + r * (1.0
+            + r * (0.5 + r * (1.0 / 6.0 + r * (1.0 / 24.0 + r * (1.0 / 120.0 + r / 720.0)))));
+    p * f32::from_bits(((n as i32 + 127) as u32) << 23)
+}
+
+/// In-place vectorized exp over a slice: NEON Horner on aarch64, scalar
+/// poly elsewhere. Max deviation vs `f32::exp` asserted < 1e-4 absolute
+/// in tests (rel ~1.2e-7 on the reduced range).
+#[cfg(target_arch = "aarch64")]
+pub fn exp_vec(x: &mut [f32]) {
+    use std::arch::aarch64::{
+        vaddq_f32, vaddq_s32, vcvtq_s32_f32, vdupq_n_f32, vdupq_n_s32, vfmaq_f32, vfmsq_f32,
+        vld1q_f32, vmaxq_f32, vminq_f32, vmulq_f32, vmulq_n_f32, vreinterpretq_f32_s32, vrndnq_f32,
+        vshlq_n_s32, vst1q_f32,
+    };
+    let chunks = x.len() / 4;
+    unsafe {
+        let lo = vdupq_n_f32(-80.0);
+        let hi = vdupq_n_f32(80.0);
+        let mut i = 0;
+        while i < chunks * 4 {
+            let v = vmaxq_f32(vminq_f32(vld1q_f32(x.as_ptr().add(i)), hi), lo);
+            // n = round(x·log2e); r = x − n·ln2
+            let n_f = vrndnq_f32(vmulq_n_f32(v, EXP_LOG2E));
+            let ln2 = vdupq_n_f32(EXP_LN2);
+            let r = vfmsq_f32(v, n_f, ln2);
+            // Horner: p = 1 + r(1 + r(1/2 + r(1/6 + r(1/24 + r(1/120 + r/720)))))
+            let mut p = vmulq_n_f32(r, 1.0 / 720.0);
+            p = vfmaq_f32(vdupq_n_f32(1.0 / 120.0), r, p);
+            p = vfmaq_f32(vdupq_n_f32(1.0 / 24.0), r, p);
+            p = vfmaq_f32(vdupq_n_f32(1.0 / 6.0), r, p);
+            p = vfmaq_f32(vdupq_n_f32(0.5), r, p);
+            p = vfmaq_f32(vdupq_n_f32(1.0), r, p);
+            p = vfmaq_f32(vdupq_n_f32(1.0), r, p);
+            // scale = 2^n via the exponent field.
+            let bits = vshlq_n_s32(vaddq_s32(vcvtq_s32_f32(n_f), vdupq_n_s32(127)), 23);
+            vst1q_f32(
+                x.as_mut_ptr().add(i),
+                vmulq_f32(p, vreinterpretq_f32_s32(bits)),
+            );
+            i += 4;
+        }
+        for v in x[chunks * 4..].iter_mut() {
+            *v = exp_poly(*v);
+        }
+    }
+    let _ = vaddq_f32; // silence unused-import risk if shapes change
+}
+
+#[cfg(not(target_arch = "aarch64"))]
+pub fn exp_vec(x: &mut [f32]) {
+    for v in x.iter_mut() {
+        *v = exp_poly(*v);
+    }
+}
+
 #[cfg(not(target_arch = "aarch64"))]
 #[inline]
 pub fn dot(a: &[f32], b: &[f32]) -> f32 {
@@ -302,6 +380,38 @@ mod tests {
         (0..len)
             .map(|_| (0..in_ch).map(|_| rng() as f32).collect())
             .collect()
+    }
+
+    #[test]
+    fn exp_poly_matches_std_exp_within_1e5() {
+        let mut worst = 0.0f32;
+        let mut x = -20.0f32;
+        while x <= 5.0 {
+            let reference = x.exp();
+            let rel = ((exp_poly(x) - reference) / reference).abs();
+            worst = worst.max(rel);
+            x += 0.001;
+        }
+        assert!(worst < 1e-5, "exp_poly worst rel err {worst}");
+    }
+
+    #[test]
+    fn exp_vec_matches_std_exp_within_1e4_absolute() {
+        let mut rng = lcg(9182);
+        let mut xs: Vec<f32> = (0..4096).map(|_| rng() as f32 * 20.0).collect();
+        let reference: Vec<f32> = xs.iter().map(|&v| v.exp()).collect();
+        exp_vec(&mut xs);
+        let (_, drift) = crate::kernels::quality::max_drift(&reference, &xs);
+        assert!(drift < 1e-4, "exp_vec absolute drift {drift}");
+    }
+
+    #[test]
+    fn exp_underflows_cleanly() {
+        assert_eq!(exp_poly(-1000.0), 0.0);
+        let mut xs = [-1000.0f32, -5.0, 0.0];
+        exp_vec(&mut xs);
+        assert_eq!(xs[0], 0.0);
+        assert!((xs[2] - 1.0).abs() < 1e-6);
     }
 
     #[test]

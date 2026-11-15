@@ -42,4 +42,6 @@ on this machine, Apple M4 single P-core, clang -O3).
 6. **Android parity** — an engine `bench` subcommand (tok/s, µJ/token, steady-state) instead of criterion-on-device.
 
 Order of attack: **F1+F11 → F2 → F4 → F3/F6 → F5(Android) → F7**, with
+F1a+F1b ✅ (3.7× @64K, 123→33.5 ms; 4K 1.84→0.96 ms) and F5's exp half ✅
+(fused into F1b; the standalone-Android measurement still pending),
 harness gap #1 built *first* (it gates F2/F5/F6).

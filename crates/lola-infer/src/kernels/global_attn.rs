@@ -169,10 +169,20 @@ impl GlobalAttention {
         // max/sum/output rescaling. Memory stays O(BLOCK + head_dim)
         // regardless of context, which is what long contexts demand
         // (K3's materialized-scores measurement is the reason this exists).
+        // F1b: KV-head sharding — each KV head's q-heads form a shard with
+        // disjoint output slices and read-only K/V, so long contexts run
+        // the shards on scoped threads (4 on the LFM3 shape).
         const BLOCK: usize = 128;
-        let mut block_scores = vec![0.0f32; BLOCK];
-        let mut acc = vec![0.0f32; d];
-        for h in 0..qh {
+        const PARALLEL_MIN_CONTEXT: usize = 2048;
+
+        // `h` is the GLOBAL head (q slice, kv-head mapping); `h_local`
+        // indexes the output slice (differs inside shards).
+        let attend_head = |h: usize,
+                           h_local: usize,
+                           block_scores: &mut [f32],
+                           acc: &mut [f32],
+                           q: &[f32],
+                           out: &mut [f32]| {
             let kv_head = h * kh / qh;
             let q_h = &q[h * d..(h + 1) * d];
             let (mut m, mut l) = (f32::NEG_INFINITY, 0.0f32);
@@ -192,25 +202,64 @@ impl GlobalAttention {
                         .copied()
                         .fold(f32::NEG_INFINITY, f32::max),
                 );
-                let correction = (m - m_new).exp();
+                let correction = crate::kernels::conv7::exp_poly(m - m_new);
                 l *= correction;
                 for a in acc.iter_mut() {
                     *a *= correction;
                 }
-                for (j, &s) in block_scores[..end - start].iter().enumerate() {
-                    let w = (s - m_new).exp();
+                // F1b: in-place diff, then one vectorized exp pass for the
+                // whole block (replaces per-element scalar expf).
+                for s in block_scores[..end - start].iter_mut() {
+                    *s -= m_new;
+                }
+                crate::kernels::conv7::exp_vec(&mut block_scores[..end - start]);
+                for (j, &w) in block_scores[..end - start].iter().enumerate() {
                     l += w;
                     let v_h = &state.v_cache
                         [(start + j) * per + kv_head * d..(start + j) * per + (kv_head + 1) * d];
-                    crate::kernels::conv7::fma_axpy(&mut acc, w, v_h);
+                    crate::kernels::conv7::fma_axpy(acc, w, v_h);
                 }
                 m = m_new;
                 start = end;
             }
 
-            let out_h = &mut out[h * d..(h + 1) * d];
+            let out_h = &mut out[h_local * d..(h_local + 1) * d];
             for (o, &a) in out_h.iter_mut().zip(acc.iter()) {
                 *o = a / l;
+            }
+        };
+
+        if state.valid >= PARALLEL_MIN_CONTEXT && kh >= 2 && qh % kh == 0 {
+            use std::thread::scope;
+            let heads_per_shard = qh / kh;
+            let mut out_chunks = out.chunks_mut(heads_per_shard * d);
+            scope(|s| {
+                for (shard, out_chunk) in (0..kh).zip(&mut out_chunks) {
+                    let attend = &attend_head;
+                    let q = &*q;
+                    s.spawn(move || {
+                        let mut block_scores = vec![0.0f32; BLOCK];
+                        let mut acc = vec![0.0f32; d];
+                        let out_shard = out_chunk;
+                        for i in 0..heads_per_shard {
+                            attend(
+                                shard * heads_per_shard + i,
+                                i,
+                                &mut block_scores,
+                                &mut acc,
+                                q,
+                                out_shard,
+                            );
+                        }
+                    });
+                }
+            });
+            let _ = &mut out_chunks;
+        } else {
+            let mut block_scores = vec![0.0f32; BLOCK];
+            let mut acc = vec![0.0f32; d];
+            for h in 0..qh {
+                attend_head(h, h, &mut block_scores, &mut acc, q, out);
             }
         }
     }
