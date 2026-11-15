@@ -158,6 +158,50 @@ pub enum QuantKind {
     Bf16,
 }
 
+/// How a checkpoint's quantization came to exist — a weights-pipeline
+/// fact, not a format: a QAD checkpoint dequantizes as plain Q4_0.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuantProvenance {
+    /// Post-training quantization (default).
+    #[default]
+    Ptq,
+    /// Quantization-aware distillation (teacher → quantized student);
+    /// claimed ~97% of BF16 — LFM3 QAD has no published evals, so our
+    /// SB golden gates arbitrate before slot-A use.
+    Qad,
+    /// Quantization-aware training (e.g. LiquidCodec decoder Q4_0).
+    Qat,
+    FullPrecision,
+}
+
+/// One rung of the owner's quant ladder, with its provenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct QuantChoice {
+    pub kind: QuantKind,
+    pub provenance: QuantProvenance,
+}
+
+/// Owner rule (ADR-040): **QAD-Q4_0 → Q4_K_M → Q8_0.** Given the quants
+/// a checkpoint actually ships (with provenance), return the ladder's
+/// pick: a QAD-flagged Q4_0 wins; otherwise the first Q4_K_M; otherwise
+/// Q8_0; otherwise `None`.
+pub fn preferred_quant(available: &[QuantChoice]) -> Option<QuantKind> {
+    if let Some(choice) = available
+        .iter()
+        .find(|c| c.kind == QuantKind::Q4_0 && c.provenance == QuantProvenance::Qad)
+    {
+        return Some(choice.kind);
+    }
+    if let Some(choice) = available.iter().find(|c| c.kind == QuantKind::Q4kM) {
+        return Some(choice.kind);
+    }
+    available
+        .iter()
+        .find(|c| c.kind == QuantKind::Q8_0)
+        .map(|c| c.kind)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuantAssignment {
     pub tensor_class: TensorClass,
@@ -304,6 +348,54 @@ mod tests {
             EngineOp::Q4Matmul.milestone(),
             KernelMilestone::K0WeightsContainer
         );
+    }
+
+    #[test]
+    fn quant_ladder_qad_first() {
+        let available = vec![
+            QuantChoice {
+                kind: QuantKind::Q8_0,
+                provenance: QuantProvenance::Ptq,
+            },
+            QuantChoice {
+                kind: QuantKind::Q4_0,
+                provenance: QuantProvenance::Qad,
+            },
+            QuantChoice {
+                kind: QuantKind::Q4kM,
+                provenance: QuantProvenance::Ptq,
+            },
+        ];
+        assert_eq!(preferred_quant(&available), Some(QuantKind::Q4_0));
+    }
+
+    #[test]
+    fn quant_ladder_falls_back_to_q4km_then_q8() {
+        let no_qad = vec![
+            QuantChoice {
+                kind: QuantKind::Q4_0,
+                provenance: QuantProvenance::Ptq,
+            },
+            QuantChoice {
+                kind: QuantKind::Q4kM,
+                provenance: QuantProvenance::Ptq,
+            },
+        ];
+        assert_eq!(preferred_quant(&no_qad), Some(QuantKind::Q4kM));
+
+        let q8_only = vec![
+            QuantChoice {
+                kind: QuantKind::Bf16,
+                provenance: QuantProvenance::FullPrecision,
+            },
+            QuantChoice {
+                kind: QuantKind::Q8_0,
+                provenance: QuantProvenance::Ptq,
+            },
+        ];
+        assert_eq!(preferred_quant(&q8_only), Some(QuantKind::Q8_0));
+
+        assert_eq!(preferred_quant(&[]), None);
     }
 
     #[test]

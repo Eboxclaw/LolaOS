@@ -87,6 +87,27 @@ fps. Codec is a first-class engine component (**K9**, ADR-035): decoder
 Q4_0 default (3.5× smaller via decoder-only QAT), imported from the GGUF
 releases through the standard pipeline (`models.yaml: codecs:`).
 
+## 4b. Quantization ladder (ADR-040): QAD-Q4_0 → Q4_K_M → Q8_0
+
+Owner rule. Verified availability (HF, 2026-11-15):
+
+| Checkpoint | QAD-Q4_0 | Q4_K_M | Q8_0 | Registry pick |
+|---|---|---|---|---|
+| LFM3-1.7B | ✅ `LFM3-1.7B-QAD-Q4_0.gguf` (1.05 GB) | ✅ | ✅ | **q4_0 / qad** |
+| LFM3-Omni-2B | ❌ (Q4_0 ships but plain PTQ) | ✅ | ✅ | q4_k_m / ptq |
+| d1-2B | ❌ (Q4_0 = PTQ) | ✅ | ✅ | q4_k_m / ptq (slot-A quant gated on SB) |
+| d1-Omni-2B | ❌ | ❌ (none ships) | ✅ | q8_0 — the floor |
+
+Facts: QAD = teacher→quantized-student distillation, **drop-in** (same
+GGUF Q4_0 format/layout/runtime path). Published claims (~97% of BF16,
+≈Q5_K_M at small sizes) cover **LFM2.5 only** — LFM3's QAD checkpoints
+carry README mentions, no evals, and no quantized d1 quality exists
+anywhere. **Our SB golden gates arbitrate before any slot-A quantization
+change.** NVFP4/FP8 variants: GPU/SGLang-only (NVFP4 GGUF needs
+llama.cpp b12088+ and only wins on Blackwell tensor cores) — not for our
+CPU runtime. Codec: QAT Q4_0 decoder ships inside Audio/Omni GGUFs
+(d1-Omni's repo has no Q4_0 at all).
+
 ## 5. SLOs (budgets, not promises; CI-enforced regressions)
 
 | Metric | Budget | North star |

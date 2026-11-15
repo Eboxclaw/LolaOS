@@ -57,6 +57,11 @@ lola-native layout vN (LOLA_WEIGHT_LAYOUT_VERSION)
     count; ADR-026)
 ```
 
+Quant ladder (ADR-040, owner rule): **QAD-Q4_0 → Q4_K_M → Q8_0** —
+`engine::preferred_quant()` encodes it as a tested policy; provenance
+(`qad`/`ptq`/`qat`) rides in the registry because QAD is a training
+method, not a format (runtime path identical to plain Q4_0).
+
 Quant-mix design space (decided by K0 benchmarks, not taste): attention
 projections Q6k / conv Q8_0 / MLP Q4kM / embeddings Bf16 is the starting
 hypothesis. Layout version bumps invalidate every repack; every import

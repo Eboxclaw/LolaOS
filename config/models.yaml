@@ -10,7 +10,8 @@ models:
     repository: LiquidAI/d1-Omni-2B-GGUF
     role: decision
     modality: omni            # text + image + video + audio questions
-    quantization: q8_0        # no 4-bit exists today (risk register, NANO_RIPL.md)
+    quantization: q8_0        # ADR-040 ladder 3: no QAD, no Q4_K_M — Q8 floor
+    quant_provenance: ptq
     backend: reference-llamacpp
     context_limit: 131072
     est_ram_mb: 1850
@@ -21,7 +22,8 @@ models:
     repository: LiquidAI/LFM3-Omni-2B-GGUF
     role: agent
     modality: omni            # text + image + video + audio in; text/speech out
-    quantization: q4_k_m
+    quantization: q4_k_m      # ADR-040 ladder 2: Q4_0 ships but is plain PTQ
+    quant_provenance: ptq
     backend: reference-llamacpp
     context_limit: 32768      # omni ceiling
     est_ram_mb: 1100
@@ -33,20 +35,22 @@ models:
     repository: LiquidAI/d1-2B-GGUF
     role: decision
     modality: text
-    quantization: q4_k_m
+    quantization: q4_k_m      # ADR-040 ladder 2 (slot-A quant gated on SB)
+    quant_provenance: ptq
     backend: reference-llamacpp
     context_limit: 131072
     est_ram_mb: 1100
   - model_id: lfm3-1.7b
-    gguf_file: LFM3-1.7B-Q4_K_M.gguf
+    gguf_file: LFM3-1.7B-QAD-Q4_0.gguf   # ADR-040 ladder 1: QAD exists
     sha256: TODO-S2c-verify
     repository: LiquidAI/LFM3-1.7B-GGUF
     role: agent
     modality: text
-    quantization: q4_k_m
+    quantization: q4_0
+    quant_provenance: qad
     backend: reference-llamacpp
     context_limit: 262144
-    est_ram_mb: 1050
+    est_ram_mb: 1100
 registered:
   - { model_id: lfm3-vl-2b,     repository: LiquidAI/LFM3-VL-2B-GGUF,     role: specialist, modality: text, quantization: q4_k_m, backend: none, context_limit: 131072, est_ram_mb: 1100 }
   - { model_id: lfm3-audio-2b,  repository: LiquidAI/LFM3-Audio-2B-GGUF,  role: specialist, modality: text, quantization: q4_k_m, backend: none, context_limit: 32768,  est_ram_mb: 1100 }

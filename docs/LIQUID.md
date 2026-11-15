@@ -47,6 +47,10 @@ SDKs** [informed speculation from the pattern].
 - d1: calibrated probabilities in one pass; 475 packed states/s on RTX
   4090; **calibration is their asserted moat vs "Jev 1.14" — and no
   public tooling exists to calibrate d1 on a customer's own labels.**
+- QAD: verified LFM3-1.7B/VL ship QAD-Q4_0 (LFM2.5-published claims only;
+  LFM3 QAD unevaluated publicly — our gates arbitrate, ADR-040). No
+  quantized d1 quality published anywhere = our calibration-harness
+  opportunity widens.
 - Fine-tuning: cookbook TRL recipes incl. **GRPO on a 108-tool
   phone-assistant dataset** (`LiquidAI/phone-assistant-tools`) — exactly
   our tool-calling vertical, trainable on one GPU.

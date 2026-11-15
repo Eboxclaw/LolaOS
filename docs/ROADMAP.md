@@ -172,7 +172,9 @@ permissions requested lazily per tool.
 - **SB** — Benchmark-harness expansion (gates first): quality mode on the
   golden harness (token-identity, KL, ppl-Δ, needle-in-haystack @32K/64K),
   TTFT session scripts, p99 write-loop, energy wrapper (powermetrics/
-  perfetto), engine `bench` subcommand for Android parity.
+  perfetto), engine `bench` subcommand for Android parity. **QAD gate:**
+  QAD-Q4_0 vs Q4_K_M vs Q8_0 on the golden set before any slot-A
+  quantization (LFM3 QAD has no published evals — ADR-040).
 - **F1+F11** — global-attn accumulation restructure + KV SoA layout
   (est. 8–20× @64K against the measured 77 GB/s floor; KL + token-identity
   gates).

@@ -54,6 +54,9 @@ pub struct ModelEntry {
     /// Pinned sha256 — filled by S2.c when weights are fetched/verified.
     #[serde(default)]
     pub sha256: Option<String>,
+    /// How this quantization came to exist (ADR-040 ladder input).
+    #[serde(default)]
+    pub quant_provenance: crate::engine::QuantProvenance,
 }
 
 impl ModelsConfig {
@@ -99,6 +102,25 @@ mod tests {
         let text_agent = config.find("lfm3-1.7b").expect("lfm3-1.7b registered");
         assert_eq!(text_agent.modality, Modality::Text);
         assert!(text_agent.mmproj.is_none());
+
+        // ADR-040 ladder: QAD-Q4_0 where it exists (1.7B only today).
+        assert_eq!(text_agent.quantization, "q4_0");
+        assert_eq!(
+            text_agent.quant_provenance,
+            crate::engine::QuantProvenance::Qad
+        );
+        assert_eq!(
+            text_agent.gguf_file.as_deref(),
+            Some("LFM3-1.7B-QAD-Q4_0.gguf")
+        );
+        // Ladder position 2 (no QAD): Q4_K_M.
+        assert_eq!(
+            config.find("lfm3-omni-2b").unwrap().quant_provenance,
+            crate::engine::QuantProvenance::Ptq
+        );
+        assert_eq!(config.find("lfm3-omni-2b").unwrap().quantization, "q4_k_m");
+        // Ladder position 3 (no QAD, no Q4_K_M): Q8_0.
+        assert_eq!(config.find("d1-omni-2b").unwrap().quantization, "q8_0");
 
         // LiquidCodec is a first-class engine component (K9, ADR-035).
         let codec = config

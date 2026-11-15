@@ -331,3 +331,14 @@ insurance) positioned for upstream contribution (Vulkan/Adreno where
 llama.cpp is weak), benchmarked on Pipette surfaces. We complement, never
 fork: their models, their GGUFs, their fine-tune recipes; our runtime,
 ledger, router, and calibration tooling.
+
+---
+
+**ADR-040 — Quantization ladder (owner rule): QAD-Q4_0 → Q4_K_M → Q8_0.**
+Encoded as `engine::preferred_quant()` (tested policy, not a comment) +
+`quant_provenance` in the registry (QAD is a training method, not a
+format — runtime path identical to Q4_0). Registry picks (verified
+2026-11-15): lfm3-1.7b → q4_0/qad; lfm3-omni-2b & d1-2b → q4_k_m/ptq;
+d1-omni-2b → q8_0 (no 4-bit of any kind ships). LFM3 QAD carries no
+published evals and no quantized d1 quality exists — SB golden gates
+arbitrate before any slot-A quantization. NVFP4/FP8 excluded (GPU-only).
