@@ -177,7 +177,8 @@ permissions requested lazily per tool.
   quantization (LFM3 QAD has no published evals — ADR-040).
 - **F1+F11** — global-attn accumulation restructure + KV SoA layout
   (est. 8–20× @64K against the measured 77 GB/s floor; KL + token-identity
-  gates).
+  gates). *F1a shipped: NEON fma_axpy, −31% @64K (85.1 ms), quality gate
+  passed; F1b = fused exp + head parallelism.*
 - **F2** — q8_0 KV for the 6 global layers (−73% memory; NIAH + ppl gates
   from SB).
 - **F4** — SQLite pack (NORMAL, prepare_cached, batched decision txns,

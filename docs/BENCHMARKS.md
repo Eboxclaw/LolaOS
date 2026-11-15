@@ -43,6 +43,7 @@ layout, treat 8 ms as the honest pre-engine ceiling.
 | `swa_step_full_window_16x4x128` (K2: SWA-256 attention core, GQA 16/4×128, window full) | **71.3 µs** | ring buffer never grows; NEON dots |
 | `global_attn_step_4k_16x4x128` (K3: global attention, partial RoPE θ=1e6, GQA 16/4×128, 4K context) | **1.45 ms** | scores materialized (not yet flash-blocked); linear extrapolation to 128K ≈ 46 ms/layer ⇒ K4 fusion + blocked softmax is *required* before long contexts — the next milestone by measurement, not by preference |
 | `global_attn_step_4k_16x4x128` (K4: blocked online softmax) | **1.84 ms** | slightly slower than materialized at 4K — *expected*: online softmax wins memory (O(BLOCK) vs O(context), zero per-step alloc), not short-context speed |
+| `global_attn_step_64k` **F1a** (NEON fma_axpy accumulation) | **85.1 ms** (was 123 ms) | iteration 1 of F1: −31% @64K, −14% @4K; KL-vs-scalar gate passed (worst < 1e-4). Remaining gap to the 77 GB/s floor: scalar `exp`, per-element rescale, no head parallelism — F1b scope |
 | `global_attn_step_64k_16x4x128` (K4, primed cache) | **123 ms** | the honest long-context number. FLOPs dominate: scalar w·V accumulation + scalar exp are the bottleneck ⇒ K6/K7 targets: vectorize accumulation+exp, KV q8 (halves bandwidth), wgpu path |
 | `head_gate_2048_16heads` (K4) | **120 ns** | near-free, as designed |
 | `sandwich_norm_pre_2048` (K4) | **1.13 µs** | RMSNorm pre-stage |

@@ -202,9 +202,7 @@ impl GlobalAttention {
                     l += w;
                     let v_h = &state.v_cache
                         [(start + j) * per + kv_head * d..(start + j) * per + (kv_head + 1) * d];
-                    for (a, &vv) in acc.iter_mut().zip(v_h.iter()) {
-                        *a += w * vv;
-                    }
+                    crate::kernels::conv7::fma_axpy(&mut acc, w, v_h);
                 }
                 m = m_new;
                 start = end;
@@ -213,6 +211,66 @@ impl GlobalAttention {
             let out_h = &mut out[h * d..(h + 1) * d];
             for (o, &a) in out_h.iter_mut().zip(acc.iter()) {
                 *o = a / l;
+            }
+        }
+    }
+    /// Scalar path with identical math but naive accumulation — the F1
+    /// quality-gate reference (ADR-038). Test-only.
+    #[cfg(test)]
+    pub(crate) fn step_scalar_reference(
+        &self,
+        state: &mut GlobalKVState,
+        q: &mut [f32],
+        k: &mut [f32],
+        v: &[f32],
+        out: &mut [f32],
+    ) {
+        let (qh, kh, d) = (self.q_heads, self.kv_heads, self.head_dim);
+        out.fill(0.0);
+        let theta = GLOBAL_ROPE_THETA;
+        for h in 0..qh {
+            partial_rope(&mut q[h * d..(h + 1) * d], state.pos, d, theta);
+        }
+        for h in 0..kh {
+            partial_rope(&mut k[h * d..(h + 1) * d], state.pos, d, theta);
+        }
+        let slot = if state.valid < self.max_context {
+            state.valid += 1;
+            state.valid - 1
+        } else {
+            let per = kh * d;
+            state.k_cache.copy_within(per.., 0);
+            state.v_cache.copy_within(per.., 0);
+            self.max_context - 1
+        };
+        let per = kh * d;
+        state.k_cache[slot * per..(slot + 1) * per].copy_from_slice(k);
+        state.v_cache[slot * per..(slot + 1) * per].copy_from_slice(v);
+        state.pos += 1;
+
+        let mut scores = vec![0.0f32; state.valid];
+        for h in 0..qh {
+            let kv_head = h * kh / qh;
+            let q_h = &q[h * d..(h + 1) * d];
+            for (j, score) in scores.iter_mut().enumerate().take(state.valid) {
+                let k_h = &state.k_cache[j * per + kv_head * d..j * per + (kv_head + 1) * d];
+                *score = dot(q_h, k_h) * self.scale;
+            }
+            let max = scores[..state.valid]
+                .iter()
+                .copied()
+                .fold(f32::NEG_INFINITY, f32::max);
+            let mut sum = 0.0f32;
+            for s in &mut scores[..state.valid] {
+                *s = (*s - max).exp();
+                sum += *s;
+            }
+            for (j, &w) in scores[..state.valid].iter().enumerate() {
+                let weight = w / sum;
+                let v_h = &state.v_cache[j * per + kv_head * d..j * per + (kv_head + 1) * d];
+                for (o, &vv) in out[h * d..(h + 1) * d].iter_mut().zip(v_h.iter()) {
+                    *o += weight * vv;
+                }
             }
         }
     }
@@ -381,6 +439,56 @@ mod tests {
         for (a, b) in out_a.iter().zip(out_b.iter()) {
             assert!((a - b).abs() < 1e-5, "primed decode drifted: {a} vs {b}");
         }
+    }
+
+    /// F1 quality gate (ADR-038): the NEON-fma accumulation reorders
+    /// float additions; outputs must stay within KL 1e-4 of the scalar
+    /// reference on random data across a full window.
+    #[test]
+    fn f1_quality_gate_kl_vs_scalar_reference() {
+        use crate::kernels::quality::kl_divergence;
+        let att = GlobalAttention::new(4, 2, 16, 64);
+        let mut rng = crate::kernels::swa::lcg_f32(4242);
+        let (qh, kh, d) = (att.q_heads(), att.kv_heads(), att.head_dim());
+        let mut state = GlobalKVState::new(&att);
+        let mut out = vec![0.0f32; qh * d];
+        let mut outputs: Vec<f32> = Vec::new();
+        for _ in 0..64 {
+            let mut q: Vec<f32> = (0..qh * d).map(|_| rng()).collect();
+            let mut k: Vec<f32> = (0..kh * d).map(|_| rng()).collect();
+            let v: Vec<f32> = (0..kh * d).map(|_| rng()).collect();
+            att.step(&mut state, &mut q, &mut k, &v, &mut out);
+            outputs.extend_from_slice(&out);
+        }
+
+        let mut state_ref = GlobalKVState::new(&att);
+        let mut rng2 = crate::kernels::swa::lcg_f32(4242);
+        let mut reference: Vec<f32> = Vec::new();
+        let mut out_ref = vec![0.0f32; qh * d];
+        for _ in 0..64 {
+            let mut q: Vec<f32> = (0..qh * d).map(|_| rng2()).collect();
+            let mut k: Vec<f32> = (0..kh * d).map(|_| rng2()).collect();
+            let v: Vec<f32> = (0..kh * d).map(|_| rng2()).collect();
+            att.step_scalar_reference(&mut state_ref, &mut q, &mut k, &v, &mut out_ref);
+            reference.extend_from_slice(&out_ref);
+        }
+
+        let mut worst_kl = 0.0f32;
+        for step in 0..64 {
+            for h in 0..qh {
+                let a = &outputs[step * qh * d + h * d..step * qh * d + (h + 1) * d];
+                let b = &reference[step * qh * d + h * d..step * qh * d + (h + 1) * d];
+                let pos = |x: &[f32]| -> Vec<f32> {
+                    let min = x.iter().copied().fold(f32::INFINITY, f32::min);
+                    x.iter().map(|&v| v - min + 1e-6).collect()
+                };
+                worst_kl = worst_kl.max(kl_divergence(&pos(a), &pos(b)));
+            }
+        }
+        assert!(
+            worst_kl < 1e-4,
+            "F1 quality gate: worst KL {worst_kl} > 1e-4"
+        );
     }
 
     #[test]

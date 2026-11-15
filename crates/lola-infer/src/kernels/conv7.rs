@@ -222,6 +222,42 @@ pub fn dot(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
+/// `dst += alpha * src` — the attention w·V accumulation primitive.
+/// NEON fma on aarch64; plain scalar elsewhere. Same summation order as
+/// the scalar loop lane-by-lane, so the F1 quality gate (KL vs the
+/// scalar path) stays within tolerance.
+#[cfg(target_arch = "aarch64")]
+#[inline]
+pub fn fma_axpy(dst: &mut [f32], alpha: f32, src: &[f32]) {
+    use std::arch::aarch64::{vld1q_f32, vst1q_f32};
+    assert_eq!(dst.len(), src.len());
+    let chunks = dst.len() / 4;
+    let mut a_v = unsafe { std::arch::aarch64::vdupq_n_f32(alpha) };
+    let _ = &mut a_v;
+    unsafe {
+        let mut i = 0;
+        while i < chunks * 4 {
+            let d = vld1q_f32(dst.as_ptr().add(i));
+            let s = vld1q_f32(src.as_ptr().add(i));
+            let d2 = std::arch::aarch64::vfmaq_f32(d, a_v, s);
+            vst1q_f32(dst.as_mut_ptr().add(i), d2);
+            i += 4;
+        }
+        for j in chunks * 4..dst.len() {
+            dst[j] += alpha * src[j];
+        }
+    }
+}
+
+#[cfg(not(target_arch = "aarch64"))]
+#[inline]
+pub fn fma_axpy(dst: &mut [f32], alpha: f32, src: &[f32]) {
+    assert_eq!(dst.len(), src.len());
+    for (d, &s) in dst.iter_mut().zip(src.iter()) {
+        *d += alpha * s;
+    }
+}
+
 #[cfg(not(target_arch = "aarch64"))]
 #[inline]
 pub fn dot(a: &[f32], b: &[f32]) -> f32 {
@@ -266,6 +302,23 @@ mod tests {
         (0..len)
             .map(|_| (0..in_ch).map(|_| rng() as f32).collect())
             .collect()
+    }
+
+    #[test]
+    fn fma_axpy_matches_scalar_within_tolerance() {
+        let mut rng = lcg(321);
+        let n = 1000;
+        let dst: Vec<f32> = (0..n).map(|_| rng() as f32).collect();
+        let src: Vec<f32> = (0..n).map(|_| rng() as f32).collect();
+        let alpha = 0.37f32;
+        let mut scalar = dst.clone();
+        for (d, &s) in scalar.iter_mut().zip(src.iter()) {
+            *d += alpha * s;
+        }
+        let mut vector = dst.clone();
+        fma_axpy(&mut vector, alpha, &src);
+        let (_, drift) = crate::kernels::quality::max_drift(&scalar, &vector);
+        assert!(drift < 1e-5, "fma lane drift {drift} exceeds tolerance");
     }
 
     #[test]
