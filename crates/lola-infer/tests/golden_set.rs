@@ -7,11 +7,7 @@ use lola_infer::oracle::{run_conformance, ConformanceReport, GoldenOracle, Golde
 const GOLDEN: &str = include_str!("../../../evals/golden/decision-contract-v1.json");
 
 fn load() -> GoldenSet {
-    let path = std::env::temp_dir().join(format!("lola-golden-{}.json", std::process::id()));
-    std::fs::write(&path, GOLDEN).expect("write golden copy");
-    let set = GoldenSet::load(&path).expect("shipped golden set must load and validate");
-    let _ = std::fs::remove_file(&path);
-    set
+    GoldenSet::from_json(GOLDEN).expect("shipped golden set must load and validate")
 }
 
 #[test]

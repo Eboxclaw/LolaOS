@@ -41,6 +41,7 @@ layout, treat 8 ms as the honest pre-engine ceiling.
 | `conv7_step_2048x2048` (dense interpretation) | **6.77 ms** | 19.5 ms naive → 17.3 ms contiguous/alloc-free → 6.77 ms with the NEON dot kernel |
 | `conv7_depthwise_step_2048` (architecture-correct) | **8.48 µs** | O(in_ch × 7) per token — the LFM3 shape |
 | `swa_step_full_window_16x4x128` (K2: SWA-256 attention core, GQA 16/4×128, window full) | **71.3 µs** | ring buffer never grows; NEON dots |
+| `global_attn_step_4k_16x4x128` (K3: global attention, partial RoPE θ=1e6, GQA 16/4×128, 4K context) | **1.45 ms** | scores materialized (not yet flash-blocked); linear extrapolation to 128K ≈ 46 ms/layer ⇒ K4 fusion + blocked softmax is *required* before long contexts — the next milestone by measurement, not by preference |
 
 **The finding that matters:** the dense interpretation is ~800× more
 expensive and physically impossible — 13 conv layers at 2048×2048×7 would

@@ -2,6 +2,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use lola_infer::kernels::conv7::{lcg, ConvState, GatedConvKernel, GatedDepthwiseConv7, KERNEL};
+use lola_infer::kernels::global_attn::{GlobalAttention, GlobalKVState};
 use lola_infer::kernels::swa::{lcg_f32, SwaAttention, SwaState};
 
 fn bench_kernels(c: &mut Criterion) {
@@ -60,6 +61,31 @@ fn bench_kernels(c: &mut Criterion) {
                 black_box(&mut swa_out),
             );
             black_box(swa_out[0])
+        })
+    });
+
+    // K3: global attention (partial RoPE, GQA 16/4 x 128) at 4K context.
+    let gatt = GlobalAttention::lfm3(4096);
+    let mut gstate = GlobalKVState::new(&gatt);
+    let (gqh, gkh, gd) = (gatt.q_heads(), gatt.kv_heads(), gatt.head_dim());
+    let mut gq: Vec<f32> = (0..gqh * gd).map(|_| rng32()).collect();
+    let mut gk: Vec<f32> = (0..gkh * gd).map(|_| rng32()).collect();
+    let gv: Vec<f32> = (0..gkh * gd).map(|_| rng32()).collect();
+    let mut gout = vec![0.0f32; gqh * gd];
+    // Warm the cache to the full 4K context before measuring.
+    for _ in 0..gatt.max_context() {
+        gatt.step(&mut gstate, &mut gq, &mut gk, &gv, &mut gout);
+    }
+    c.bench_function("global_attn_step_4k_16x4x128", |b| {
+        b.iter(|| {
+            gatt.step(
+                black_box(&mut gstate),
+                black_box(&mut gq),
+                black_box(&mut gk),
+                black_box(&gv),
+                black_box(&mut gout),
+            );
+            black_box(gout[0])
         })
     });
 }

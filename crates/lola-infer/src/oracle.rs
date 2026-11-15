@@ -47,7 +47,13 @@ pub struct GoldenSet {
 impl GoldenSet {
     pub fn load(path: &Path) -> Result<Self, GoldenError> {
         let text = std::fs::read_to_string(path)?;
-        let set: GoldenSet = serde_json::from_str(&text)?;
+        Self::from_json(&text)
+    }
+
+    /// Parse from an in-memory JSON document (tests embed sets via
+    /// include_str! — no temp files, no races).
+    pub fn from_json(text: &str) -> Result<Self, GoldenError> {
+        let set: GoldenSet = serde_json::from_str(text)?;
         set.validate()?;
         Ok(set)
     }
