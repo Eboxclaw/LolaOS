@@ -11,6 +11,39 @@ use uuid::Uuid;
 use crate::error::Result;
 use crate::persistence;
 
+/// One tick's write transaction (F4). Opens BEGIN IMMEDIATE, all tick
+/// writes flow through [`TickTxn::writer`], and [`TickTxn::commit`]
+/// closes it. Drop without commit ⇒ ROLLBACK (panic/unwind safe).
+pub struct TickTxn<'a> {
+    writer: &'a mut LedgerWriter,
+    open: bool,
+}
+
+impl<'a> TickTxn<'a> {
+    pub fn begin(writer: &'a mut LedgerWriter) -> Result<Self> {
+        writer.conn.execute_batch("BEGIN IMMEDIATE")?;
+        Ok(Self { writer, open: true })
+    }
+
+    pub fn writer(&mut self) -> &mut LedgerWriter {
+        self.writer
+    }
+
+    pub fn commit(mut self) -> Result<()> {
+        self.open = false;
+        self.writer.conn.execute_batch("COMMIT")?;
+        Ok(())
+    }
+}
+
+impl Drop for TickTxn<'_> {
+    fn drop(&mut self) {
+        if self.open {
+            let _ = self.writer.conn.execute_batch("ROLLBACK");
+        }
+    }
+}
+
 /// Owning wrapper: takes `&mut self` for writes — the single-writer
 /// discipline is enforced by the type system.
 pub struct LedgerWriter {
@@ -83,12 +116,14 @@ impl LedgerWriter {
         )?;
         let event_id = format!("ev-{}", Uuid::new_v4());
         let hash = hash16(payload_json);
-        self.conn.execute(
-            "INSERT INTO session_events
+        self.conn
+            .prepare_cached(
+                "INSERT INTO session_events
                  (event_id, session_id, sequence_no, event_type, event_time_ns,
                   recorded_at_ns, payload_json, payload_hash)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
+            )?
+            .execute(params![
                 event_id,
                 session_id,
                 seq,
@@ -97,8 +132,7 @@ impl LedgerWriter {
                 persistence::now_ns(),
                 payload_json,
                 hash
-            ],
-        )?;
+            ])?;
         Ok(event_id)
     }
 
@@ -189,13 +223,15 @@ impl LedgerWriter {
         status: &str,
     ) -> Result<String> {
         let decision_id = format!("dec-{}", Uuid::new_v4());
-        self.conn.execute(
-            "INSERT INTO decision_runs
+        self.conn
+            .prepare_cached(
+                "INSERT INTO decision_runs
                  (decision_id, session_id, instrument_id, timeframe, event_time_ns,
                   snapshot_id, strategy_id, strategy_version, decision_mode,
                   decision_json, policy_version, decision_hash, status, created_at_ns)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, ?12, ?13)",
-            params![
+            )?
+            .execute(params![
                 decision_id,
                 session_id,
                 instrument_id,
@@ -209,8 +245,7 @@ impl LedgerWriter {
                 hash16(decision_json),
                 status,
                 persistence::now_ns()
-            ],
-        )?;
+            ])?;
         Ok(decision_id)
     }
 
@@ -309,6 +344,17 @@ impl LedgerWriter {
             ],
         )?;
         Ok(fill_id)
+    }
+
+    /// Explicit WAL checkpoint (TRUNCATE): maintenance, run BETWEEN ticks
+    /// by the scheduler — never inside the decision path (F4; the tail
+    /// test proves the stall stays out).
+    pub fn checkpoint(&mut self) -> Result<()> {
+        // The pragma returns a row (busy/log/checkpointed pages) — read it.
+        let _: i64 = self
+            .conn
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| row.get(0))?;
+        Ok(())
     }
 
     /// Recovery snapshot after a process death: where the session stopped

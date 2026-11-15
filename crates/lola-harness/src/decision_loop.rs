@@ -17,7 +17,7 @@ use crate::metrics::StageMetrics;
 use crate::risk::{self, PortfolioView, RiskLimits};
 use crate::strategy;
 
-use lola_memory::ledger::{InsertOutcome, LedgerWriter, RecoveryState};
+use lola_memory::ledger::{InsertOutcome, LedgerWriter, RecoveryState, TickTxn};
 
 pub const FILL_MODEL_VERSION: &str = "paper-v1";
 
@@ -153,6 +153,11 @@ pub fn run_tick(
             features::snapshot_hash(&features),
         )
     });
+    // F4: the whole tick's writes commit as ONE transaction — drop
+    // without commit rolls back (panic-safe), every return path commits.
+    let mut txn = TickTxn::begin(writer)?;
+    let writer = txn.writer();
+
     let snapshot_id = metrics.measure("ledger_snapshot", || {
         writer.insert_snapshot(
             &config.instrument_id,
@@ -195,6 +200,7 @@ pub fn run_tick(
     )?;
 
     let Some(candidate) = candidate else {
+        txn.commit()?;
         return Ok(TickSummary {
             decision_id,
             action: TickAction::NoCandidate,
@@ -213,6 +219,7 @@ pub fn run_tick(
         Side::Sell => (portfolio.position_qty, true),
     };
     if qty <= 0.0 {
+        txn.commit()?;
         return Ok(TickSummary {
             decision_id,
             action: TickAction::NoCandidate,
@@ -256,6 +263,7 @@ pub fn run_tick(
     )?;
 
     if !report.accepted {
+        txn.commit()?;
         return Ok(TickSummary {
             decision_id,
             action: TickAction::RiskRejected {
@@ -352,6 +360,8 @@ pub fn run_tick(
     }
     let equity = portfolio.cash + portfolio.position_qty * price;
     portfolio.peak_equity = portfolio.peak_equity.max(equity);
+
+    txn.commit()?;
 
     Ok(TickSummary {
         decision_id,

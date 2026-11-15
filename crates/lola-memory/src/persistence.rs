@@ -29,19 +29,53 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
 ];
 
-/// Open the operational database with kernel pragmas applied.
-pub fn open(path: &Path) -> Result<Connection> {
+/// Durability profile (F4, ADR-038). Under WAL, `NORMAL` is crash-safe
+/// (an app crash never corrupts; at most the last checkpoint is lost —
+/// exactly the ADR-025 checkpoint/resume model) and removes the
+/// fsync-per-commit cost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Durability {
+    /// fsync per commit (strict power-loss durability).
+    Full,
+    /// WAL-normal: single-digit-µs commit class.
+    Normal,
+}
+
+/// Open with an explicit durability profile + bounded WAL (rarer
+/// autocheckpoints so the committing thread stalls less often; K6 moves
+/// them off the decode thread entirely).
+pub fn open_with_durability(path: &Path, durability: Durability) -> Result<Connection> {
     let conn = Connection::open(path)?;
     // foreign_keys and synchronous setters return no rows.
     conn.pragma_update(None, "foreign_keys", "ON")?;
-    conn.pragma_update(None, "synchronous", "FULL")?;
+    match durability {
+        Durability::Full => conn.pragma_update(None, "synchronous", "FULL")?,
+        Durability::Normal => conn.pragma_update(None, "synchronous", "NORMAL")?,
+    }
     // journal_mode and busy_timeout setters return the new value as a row,
     // so read them back instead of using pragma_update.
     if path != Path::new(":memory:") {
         let _: String = conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get(0))?;
     }
     let _: i64 = conn.query_row("PRAGMA busy_timeout=5000", [], |row| row.get(0))?;
+    let _: i64 = conn.query_row("PRAGMA wal_autocheckpoint=2000", [], |row| row.get(0))?;
     Ok(conn)
+}
+
+/// Open with the loop-path profile (F4: WAL + synchronous NORMAL +
+/// autocheckpoint DISABLED — checkpoints are explicit maintenance via
+/// [`crate::ledger::LedgerWriter::checkpoint`], run between ticks by the
+/// scheduler, never inside the decision path; the F4 tail test proves
+/// the 28 ms autocheckpoint stall stays off the write path).
+pub fn open_fast(path: &Path) -> Result<Connection> {
+    let conn = open_with_durability(path, Durability::Normal)?;
+    let _: i64 = conn.query_row("PRAGMA wal_autocheckpoint=0", [], |row| row.get(0))?;
+    Ok(conn)
+}
+
+/// Legacy entry point: strict FULL durability (operator-chosen).
+pub fn open(path: &Path) -> Result<Connection> {
+    open_with_durability(path, Durability::Full)
 }
 
 /// Apply pending migrations in order. Returns the versions applied now
