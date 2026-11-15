@@ -2,6 +2,7 @@
 //! decision cycle) at S4-scale data (100k snapshots + decisions).
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use lola_memory::cache::{CacheKey, DecisionCache};
 use lola_memory::ledger::LedgerWriter;
 use uuid::Uuid;
 
@@ -136,6 +137,27 @@ fn bench_retrieval(c: &mut Criterion) {
             .expect("candidates");
             let top = lola_memory::knn::rank_topk(&query, &candidates, 8);
             black_box((candidates.len(), top.len()))
+        })
+    });
+
+    // SP2: RAM decision-cache hit path (gate < 5 us; expect well under 1 us).
+    let mut hot = DecisionCache::new(4096);
+    let cache_key = CacheKey {
+        snapshot_hash: "a1b2c3d4e5f60718".into(),
+        feature_schema_version: "market-state-v1".into(),
+        question_schema_version: "tick-decision-v1".into(),
+        strategy_version: "momentum-v1@1".into(),
+        model_checkpoint: "d1-omni-2b@q8".into(),
+        adapter_version: "0.1".into(),
+        policy_version: "risk-1".into(),
+        instrument: "HYPERLIQUID:BTC-PERP".into(),
+        timeframe: "5m".into(),
+    };
+    hot.insert(cache_key.clone(), 42u32);
+    group.bench_function("cache_hit_hot", |b| {
+        b.iter(|| {
+            let hit = hot.get(black_box(&cache_key));
+            black_box(hit.is_some())
         })
     });
 

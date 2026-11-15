@@ -16,6 +16,7 @@
 //! - [`blobs`]       — content-addressed payload store path scheme
 
 pub mod blobs;
+pub mod cache;
 pub mod casebank;
 pub mod compaction;
 pub mod config;

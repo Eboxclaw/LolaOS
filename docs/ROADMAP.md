@@ -191,8 +191,8 @@ permissions requested lazily per tool.
   decoding (accept-rate ≥ 1.5 gate before enabling).
 - **SP series — the recall spine** (ADR-041, docs/PIPELINE.md):
   **SP1 ✅** numeric feature vectors + bucket-kNN — **859 ns @100k**
-  (gate <300 µs beaten 350×; the 8.18 ms JSON scan is retired) · **SP2** RAM decision-cache hot map (<5 µs hits,
-  9-dependency invalidation) · **SP3** graph edge hot-cache + precompiled
+  (gate <300 µs beaten 350×; the 8.18 ms JSON scan is retired) · **SP2 ✅** RAM decision-cache hot map — **63 ns hits** (gate <5 µs,
+  beaten 80×); 9-dependency exact-match + prefix invalidation tested · **SP3** graph edge hot-cache + precompiled
   hops (<20 µs warm) · **SP4** int8 vector rerank via engine SIMD —
   enabled per query class only where SB's recall@k beats lexical ·
   **SP5** lazy parsing on recall paths · **SP6** batched UniFFI tool

@@ -23,6 +23,7 @@ thesis (MOBILE_FIRST.md §1) now has numbers behind it.
 |---|---|---|---|
 | `signature_lookup` (exact bucket via index) | **2.48 µs** | — | index does all the work |
 | `bucket_knn_top8` (JSON candidates — pre-SP1 shape) | **8.18 ms** | superseded by SP1; kept as the cautionary baseline |
+| `cache_hit_hot` (**SP2**: RAM decision-cache hit, 9-dependency key) | **63 ns** | gate was < 5 µs — beaten 80×. Hits never touch SQLite; invalidation by dependency-prefix (policy/schema bumps) tested |
 | `bucket_knn_numeric` (**SP1**: numeric side-table + compact rows + dist² ranking) | **859 ns** | **9,500× vs JSON**; gate was < 300 µs — beaten by 350×. The entire retrieval stages 2–5 now fit in ~1 ms |
 | `decision_insert` (snapshot + decision row write) | **133 µs** | — | WAL write cost per tick |
 
