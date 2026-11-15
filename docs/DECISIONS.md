@@ -342,3 +342,20 @@ format — runtime path identical to Q4_0). Registry picks (verified
 d1-omni-2b → q8_0 (no 4-bit of any kind ships). LFM3 QAD carries no
 published evals and no quantized d1 quality exists — SB golden gates
 arbitrate before any slot-A quantization. NVFP4/FP8 excluded (GPU-only).
+
+---
+
+*Pipeline-spine planning round (2026-11-15). Full plan: docs/PIPELINE.md.*
+
+**ADR-041 — Retrieval spine: lexical-first, vector-rerank-when-measured
+(amends ADR-010 for the vector question).** The recall pipeline (both
+loops) is staged and budgeted: RAM decision-cache → signature → history →
+numeric bucket-kNN → graph hops → optional vector rerank. Vectors ship as
+**int8-quantized BLOBs scanned with the engine's own SIMD primitives**
+(no vector DB service, no HNSW day one), enabled per query class only
+where the SB recall@k harness proves lexical recall insufficient — the
+gate is recall quality, not latency (ADR-038). Non-inference stages get
+the same treatment as kernels: numeric storage over JSON (R1), hot maps
+over SQL (R2), precompiled traversals + edge hot-cache (R3), lazy parsing
+(R5), batched UniFFI tool dispatch (R6). Tick non-model total budget:
+< 5 ms p95.

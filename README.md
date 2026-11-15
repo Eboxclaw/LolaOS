@@ -12,6 +12,7 @@ process, no sidecars, mobile constraints respected from day one.
 [ROUTER — pass-forward reference tables](docs/ROUTER.md)
 
 **Memory & agent:** [MEMORY — storage, knowledge graph, retrieval](docs/MEMORY.md) ·
+[PIPELINE — the recall spine, budgeted](docs/PIPELINE.md) ·
 [CONTEXT — discipline, skills, personality, improvement](docs/CONTEXT.md) ·
 [TOOLS — categorized native tool layer](docs/TOOLS.md)
 

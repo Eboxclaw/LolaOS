@@ -189,6 +189,14 @@ permissions requested lazily per tool.
   (TTFT gates; KV-hash correctness).
 - **F5/F7** — NEON exp (Android-weighted) + prompt-lookup speculative
   decoding (accept-rate ≥ 1.5 gate before enabling).
+- **SP series — the recall spine** (ADR-041, docs/PIPELINE.md):
+  **SP1** numeric feature vectors + SIMD bucket-kNN (<300 µs @100k; kills
+  the 8 ms JSON scan) · **SP2** RAM decision-cache hot map (<5 µs hits,
+  9-dependency invalidation) · **SP3** graph edge hot-cache + precompiled
+  hops (<20 µs warm) · **SP4** int8 vector rerank via engine SIMD —
+  enabled per query class only where SB's recall@k beats lexical ·
+  **SP5** lazy parsing on recall paths · **SP6** batched UniFFI tool
+  dispatch (<1 ms/turn, with Sn).
 
 ## Later (unordered)
 
