@@ -42,6 +42,10 @@ layout, treat 8 ms as the honest pre-engine ceiling.
 | `conv7_depthwise_step_2048` (architecture-correct) | **8.48 µs** | O(in_ch × 7) per token — the LFM3 shape |
 | `swa_step_full_window_16x4x128` (K2: SWA-256 attention core, GQA 16/4×128, window full) | **71.3 µs** | ring buffer never grows; NEON dots |
 | `global_attn_step_4k_16x4x128` (K3: global attention, partial RoPE θ=1e6, GQA 16/4×128, 4K context) | **1.45 ms** | scores materialized (not yet flash-blocked); linear extrapolation to 128K ≈ 46 ms/layer ⇒ K4 fusion + blocked softmax is *required* before long contexts — the next milestone by measurement, not by preference |
+| `global_attn_step_4k_16x4x128` (K4: blocked online softmax) | **1.84 ms** | slightly slower than materialized at 4K — *expected*: online softmax wins memory (O(BLOCK) vs O(context), zero per-step alloc), not short-context speed |
+| `global_attn_step_64k_16x4x128` (K4, primed cache) | **123 ms** | the honest long-context number. FLOPs dominate: scalar w·V accumulation + scalar exp are the bottleneck ⇒ K6/K7 targets: vectorize accumulation+exp, KV q8 (halves bandwidth), wgpu path |
+| `head_gate_2048_16heads` (K4) | **120 ns** | near-free, as designed |
+| `sandwich_norm_pre_2048` (K4) | **1.13 µs** | RMSNorm pre-stage |
 
 **The finding that matters:** the dense interpretation is ~800× more
 expensive and physically impossible — 13 conv layers at 2048×2048×7 would

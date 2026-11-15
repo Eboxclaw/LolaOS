@@ -29,8 +29,8 @@ gate; sandwich norm; 128K vocab; tied embeddings; MLP 7680.
 | `GatedConv7` | **Depthwise** gated short-conv (per-channel k=7 value+gate), constant 7-slot state — 8.5 µs/token measured; dense variant kept as pointwise/parity utility | No KV at all; O(in_ch×7) per token — measured ~800× cheaper than the dense reading, which is exactly why LFM3 uses it for 13/24 layers | K1 ✅ |
 | `SwaAttention` | Ring-buffer KV (fixed 256 slots), full-RoPE θ=1e4 — 71 µs/token measured (GQA 16/4×128, window full) | Bounded memory per head regardless of context; single flat buffer, no eviction logic | K2 ✅ |
 | `GlobalAttention` | GQA 16/4, partial RoPE (rotate only the high-frequency half of each head) | Partial rotation changes the RoPE kernel's inner loop; generic kernels do wasted work | K3 |
-| `HeadGate` | Per-head sigmoid gate fused into attention output | Near-free; fused avoids a whole tensor round-trip | K4 |
-| `SandwichNorm` | Pre+post RMSNorm pair per block, fused with neighbors | Removes two global passes per block | K4 |
+| `HeadGate` | Per-head sigmoid gate fused into attention output — 120 ns measured | Near-free; fused avoids a whole tensor round-trip | K4 ✅ |
+| `SandwichNorm` | Pre+post RMSNorm pair per block, fused with neighbors — 1.13 µs measured | Removes two global passes per block | K4 ✅ |
 | `Q4Matmul` | Quantized matmul family, per-tensor mixes | Repacked layout lets tiles match our loop order (see §2) | K0+ |
 | `TiedEmbedding` | 128K-vocab tied lookup + logits head | vocab is 2× LFM2's — embedding layout matters on 32K-cache devices | K0+ |
 | `GatedMlp` | SwiGLU-style MLP, inter 7680 | Fused gate+up dequant | K0+ |

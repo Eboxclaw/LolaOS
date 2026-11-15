@@ -89,6 +89,39 @@ impl GlobalAttention {
         2 * self.max_context * self.kv_heads * self.head_dim
     }
 
+    /// Prefill/prime: append K/V for `n` tokens (partial RoPE applied at
+    /// sequential positions) **without attending** — the fast path for
+    /// filling a long cache (decode then proceeds token by token).
+    pub fn prime_kv(&self, state: &mut GlobalKVState, ks: &[Vec<f32>], vs: &[Vec<f32>]) {
+        assert_eq!(ks.len(), vs.len());
+        for (k, v) in ks.iter().zip(vs.iter()) {
+            let theta = GLOBAL_ROPE_THETA;
+            let mut k = k.to_vec();
+            for h in 0..self.kv_heads {
+                partial_rope(
+                    &mut k[h * self.head_dim..(h + 1) * self.head_dim],
+                    state.pos,
+                    self.head_dim,
+                    theta,
+                );
+            }
+            let per = self.kv_heads * self.head_dim;
+            assert_eq!(k.len(), per);
+            assert_eq!(v.len(), per);
+            let slot = if state.valid < self.max_context {
+                state.valid += 1;
+                state.valid - 1
+            } else {
+                state.k_cache.copy_within(per.., 0);
+                state.v_cache.copy_within(per.., 0);
+                self.max_context - 1
+            };
+            state.k_cache[slot * per..(slot + 1) * per].copy_from_slice(&k);
+            state.v_cache[slot * per..(slot + 1) * per].copy_from_slice(v);
+            state.pos += 1;
+        }
+    }
+
     /// One token: raw q/k/v (RoPE applied here). Zero-alloc after warmup.
     pub fn step(
         &self,
@@ -131,21 +164,55 @@ impl GlobalAttention {
         state.v_cache[slot * per..(slot + 1) * per].copy_from_slice(v);
         state.pos += 1;
 
-        let mut scores = vec![0.0f32; state.valid];
+        // Flash-style blocked online softmax (K4): never materialize the
+        // full score vector — fixed-size block buffer + streaming
+        // max/sum/output rescaling. Memory stays O(BLOCK + head_dim)
+        // regardless of context, which is what long contexts demand
+        // (K3's materialized-scores measurement is the reason this exists).
+        const BLOCK: usize = 128;
+        let mut block_scores = vec![0.0f32; BLOCK];
+        let mut acc = vec![0.0f32; d];
         for h in 0..qh {
             let kv_head = h * kh / qh;
             let q_h = &q[h * d..(h + 1) * d];
-            for (j, score) in scores.iter_mut().enumerate().take(state.valid) {
-                let k_h = &state.k_cache[j * per + kv_head * d..j * per + (kv_head + 1) * d];
-                *score = dot(q_h, k_h) * self.scale;
-            }
-            softmax_in_place(&mut scores[..state.valid]);
-            for (j, &weight) in scores[..state.valid].iter().enumerate() {
-                let v_h = &state.v_cache[j * per + kv_head * d..j * per + (kv_head + 1) * d];
-                let out_h = &mut out[h * d..(h + 1) * d];
-                for (o, &vv) in out_h.iter_mut().zip(v_h.iter()) {
-                    *o += weight * vv;
+            let (mut m, mut l) = (f32::NEG_INFINITY, 0.0f32);
+            acc.fill(0.0);
+
+            let mut start = 0usize;
+            while start < state.valid {
+                let end = (start + BLOCK).min(state.valid);
+                for (j, score) in block_scores.iter_mut().enumerate().take(end - start) {
+                    let k_h = &state.k_cache
+                        [(start + j) * per + kv_head * d..(start + j) * per + (kv_head + 1) * d];
+                    *score = dot(q_h, k_h) * self.scale;
                 }
+                let m_new = m.max(
+                    block_scores[..end - start]
+                        .iter()
+                        .copied()
+                        .fold(f32::NEG_INFINITY, f32::max),
+                );
+                let correction = (m - m_new).exp();
+                l *= correction;
+                for a in acc.iter_mut() {
+                    *a *= correction;
+                }
+                for (j, &s) in block_scores[..end - start].iter().enumerate() {
+                    let w = (s - m_new).exp();
+                    l += w;
+                    let v_h = &state.v_cache
+                        [(start + j) * per + kv_head * d..(start + j) * per + (kv_head + 1) * d];
+                    for (a, &vv) in acc.iter_mut().zip(v_h.iter()) {
+                        *a += w * vv;
+                    }
+                }
+                m = m_new;
+                start = end;
+            }
+
+            let out_h = &mut out[h * d..(h + 1) * d];
+            for (o, &a) in out_h.iter_mut().zip(acc.iter()) {
+                *o = a / l;
             }
         }
     }
@@ -171,6 +238,7 @@ impl GlobalKVState {
     }
 }
 
+#[cfg(test)]
 fn softmax_in_place(scores: &mut [f32]) {
     let max = scores.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     let mut sum = 0.0f32;
@@ -277,6 +345,42 @@ mod tests {
             }
         }
         assert_eq!(state.valid(), 16);
+    }
+
+    #[test]
+    fn primed_decode_matches_stepped_decode() {
+        // Fill 32 positions by stepping; independently prime 32 positions
+        // with the same K/V, then decode one token — outputs must match.
+        let att = GlobalAttention::new(4, 2, 16, 64);
+        let mut rng = crate::kernels::swa::lcg_f32(77);
+        let (qh, kh, d) = (att.q_heads(), att.kv_heads(), att.head_dim());
+        let mut history_k: Vec<Vec<f32>> = Vec::new();
+        let mut history_v: Vec<Vec<f32>> = Vec::new();
+        let mut stepped = GlobalKVState::new(&att);
+        let mut out_stepped = vec![0.0; qh * d];
+        for _ in 0..32 {
+            let mut q: Vec<f32> = (0..qh * d).map(|_| rng()).collect();
+            let mut k: Vec<f32> = (0..kh * d).map(|_| rng()).collect();
+            let v: Vec<f32> = (0..kh * d).map(|_| rng()).collect();
+            history_k.push(k.clone());
+            history_v.push(v.clone());
+            att.step(&mut stepped, &mut q, &mut k, &v, &mut out_stepped);
+        }
+        let mut primed = GlobalKVState::new(&att);
+        att.prime_kv(&mut primed, &history_k, &history_v);
+        assert_eq!(primed.valid(), 32);
+        assert_eq!(primed.position(), 32);
+
+        let mut q: Vec<f32> = (0..qh * d).map(|_| rng()).collect();
+        let mut k: Vec<f32> = (0..kh * d).map(|_| rng()).collect();
+        let v: Vec<f32> = (0..kh * d).map(|_| rng()).collect();
+        let mut out_a = vec![0.0; qh * d];
+        let mut out_b = vec![0.0; qh * d];
+        att.step(&mut stepped, &mut q.clone(), &mut k.clone(), &v, &mut out_a);
+        att.step(&mut primed, &mut q, &mut k, &v, &mut out_b);
+        for (a, b) in out_a.iter().zip(out_b.iter()) {
+            assert!((a - b).abs() < 1e-5, "primed decode drifted: {a} vs {b}");
+        }
     }
 
     #[test]

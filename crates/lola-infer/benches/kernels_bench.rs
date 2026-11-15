@@ -2,6 +2,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use lola_infer::kernels::conv7::{lcg, ConvState, GatedConvKernel, GatedDepthwiseConv7, KERNEL};
+use lola_infer::kernels::fused::{apply_head_gate, SandwichNorm};
 use lola_infer::kernels::global_attn::{GlobalAttention, GlobalKVState};
 use lola_infer::kernels::swa::{lcg_f32, SwaAttention, SwaState};
 
@@ -86,6 +87,52 @@ fn bench_kernels(c: &mut Criterion) {
                 black_box(&mut gout),
             );
             black_box(gout[0])
+        })
+    });
+
+    // K4 long-context proof: blocked online softmax at 64K (the shape
+    // where materialized scores would cost 256 KB/head/step).
+    let att64 = GlobalAttention::lfm3(65_536);
+    let mut state64 = GlobalKVState::new(&att64);
+    let mut q64: Vec<f32> = (0..gqh * gd).map(|_| rng32()).collect();
+    let mut k64: Vec<f32> = (0..gkh * gd).map(|_| rng32()).collect();
+    let v64: Vec<f32> = (0..gkh * gd).map(|_| rng32()).collect();
+    let mut out64 = vec![0.0f32; gqh * gd];
+    let prime_k: Vec<Vec<f32>> = (0..att64.max_context())
+        .map(|_| (0..gkh * gd).map(|_| rng32()).collect())
+        .collect();
+    let prime_v: Vec<Vec<f32>> = (0..att64.max_context())
+        .map(|_| (0..gkh * gd).map(|_| rng32()).collect())
+        .collect();
+    att64.prime_kv(&mut state64, &prime_k, &prime_v);
+    c.bench_function("global_attn_step_64k_16x4x128", |b| {
+        b.iter(|| {
+            att64.step(
+                black_box(&mut state64),
+                black_box(&mut q64),
+                black_box(&mut k64),
+                black_box(&v64),
+                black_box(&mut out64),
+            );
+            black_box(out64[0])
+        })
+    });
+
+    // K4: fused elementwise kernels at 2048 width.
+    let mut gate_buf = vec![0.5f32; 2048];
+    let gate_logits = vec![0.7f32; 16];
+    c.bench_function("head_gate_2048_16heads", |b| {
+        b.iter(|| {
+            apply_head_gate(black_box(&mut gate_buf), black_box(&gate_logits), 128);
+            black_box(gate_buf[0])
+        })
+    });
+    let norm = SandwichNorm::identity(2048);
+    let mut norm_buf = vec![0.3f32; 2048];
+    c.bench_function("sandwich_norm_pre_2048", |b| {
+        b.iter(|| {
+            norm.pre(black_box(&mut norm_buf));
+            black_box(norm_buf[0])
         })
     });
 }

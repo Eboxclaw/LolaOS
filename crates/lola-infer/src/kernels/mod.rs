@@ -4,5 +4,6 @@
 //! then the mathematical invariants here are the gate).
 
 pub mod conv7;
+pub mod fused;
 pub mod global_attn;
 pub mod swa;
