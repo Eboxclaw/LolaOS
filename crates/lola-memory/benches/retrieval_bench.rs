@@ -124,6 +124,21 @@ fn bench_retrieval(c: &mut Criterion) {
         })
     });
 
+    // SP1: the same lookup + ranking over numeric columns (gate < 300 µs).
+    group.bench_function("bucket_knn_numeric", |b| {
+        let query = [0.005, 0.02, 0.04, 0.015, 1.3, 2.0, 2.0, 1.0, 2.0];
+        b.iter(|| {
+            let candidates = lola_memory::knn::knn_candidates(
+                conn,
+                "5m|Positive|Normal|Healthy|momentum-v1",
+                512,
+            )
+            .expect("candidates");
+            let top = lola_memory::knn::rank_topk(&query, &candidates, 8);
+            black_box((candidates.len(), top.len()))
+        })
+    });
+
     group.finish();
 
     // Writer throughput: the actual per-tick decision write (mutable path).
@@ -141,6 +156,7 @@ fn bench_retrieval(c: &mut Criterion) {
                     "5m|Positive|Normal|Healthy|momentum-v1",
                     &format!("hash-{i:08x}"),
                     "{}",
+                    [0.005, 0.02, 0.04, 0.015, 1.3, 2.0, 2.0, 1.0, 2.0],
                 )
                 .expect("snap");
             let decision = writer

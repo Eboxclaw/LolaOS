@@ -21,7 +21,7 @@ fn migrations_apply_in_order_and_are_idempotent() {
     let (path, mut conn) = scratch_db();
 
     let first = persistence::migrate(&mut conn).expect("first migration run");
-    assert_eq!(first, vec![1, 2]);
+    assert_eq!(first, vec![1, 2, 3]);
 
     let second = persistence::migrate(&mut conn).expect("second migration run");
     assert!(second.is_empty(), "migrations must be idempotent");

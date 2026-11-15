@@ -102,7 +102,8 @@ impl LedgerWriter {
         Ok(event_id)
     }
 
-    /// Persist a feature snapshot; returns its id.
+    /// Persist a feature snapshot (JSON payload + SP1 numeric vector row);
+    /// returns its id. The vector powers retrieval kNN (ADR-041).
     #[allow(clippy::too_many_arguments)]
     pub fn insert_snapshot(
         &mut self,
@@ -112,6 +113,7 @@ impl LedgerWriter {
         state_signature: &str,
         snapshot_hash: &str,
         features_json: &str,
+        vector9: [f32; 9],
     ) -> Result<String> {
         let snapshot_id = format!("snap-{}", Uuid::new_v4());
         self.conn.execute(
@@ -144,6 +146,30 @@ impl LedgerWriter {
                 )
                 .map_err(Into::into);
         }
+        // SP1: numeric vector row for retrieval (same PK, one per snapshot).
+        self.conn.execute(
+            "INSERT OR IGNORE INTO feature_vectors
+                 (snapshot_id, instrument_id, timeframe, event_time_ns,
+                  state_signature, r1, r5, r20, atr, vr, spread,
+                  trend_s, vol_s, liq_s)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                snapshot_id,
+                instrument_id,
+                timeframe,
+                event_time_ns,
+                state_signature,
+                vector9[0],
+                vector9[1],
+                vector9[2],
+                vector9[3],
+                vector9[4],
+                vector9[5],
+                vector9[6] as i64,
+                vector9[7] as i64,
+                vector9[8] as i64,
+            ],
+        )?;
         Ok(snapshot_id)
     }
 
@@ -378,6 +404,7 @@ mod tests {
                 "sig",
                 &format!("h{n}"),
                 "{}",
+                [0.0; 9],
             )
             .unwrap();
         w.insert_decision(
@@ -438,7 +465,7 @@ mod tests {
         w.begin_session("s1", "paper_trading").unwrap();
         w.append_event("s1", "decision_recorded", 1, "{}").unwrap();
         let snap = w
-            .insert_snapshot("PAPER:BTC-PERP", "5m", 42, "sig", "hash", "{}")
+            .insert_snapshot("PAPER:BTC-PERP", "5m", 42, "sig", "hash", "{}", [0.0; 9])
             .unwrap();
         let decision = w
             .insert_decision(

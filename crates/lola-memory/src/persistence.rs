@@ -23,6 +23,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         2,
         include_str!("../../../migrations/0002_omni_sessions.sql"),
     ),
+    (
+        3,
+        include_str!("../../../migrations/0003_feature_vectors.sql"),
+    ),
 ];
 
 /// Open the operational database with kernel pragmas applied.

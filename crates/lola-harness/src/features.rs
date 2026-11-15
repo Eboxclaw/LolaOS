@@ -160,6 +160,41 @@ pub fn snapshot_hash(features: &FeatureVector) -> String {
     format!("{hash:016x}")
 }
 
+/// Compact numeric encoding for retrieval (SP1, ADR-041): the 6 floats
+/// plus enum states as small ints. Order is fixed: r1, r5, r20, atr, vr,
+/// spread, trend, vol, liq. This is the `feature_vectors` row shape.
+pub fn to_vector9(f: &FeatureVector) -> [f32; 9] {
+    let trend = match f.trend_state {
+        TrendState::Negative => 0.0,
+        TrendState::Neutral => 1.0,
+        TrendState::Positive => 2.0,
+    };
+    let vol = match f.volatility_state {
+        VolatilityState::Low => 0.0,
+        VolatilityState::Normal => 1.0,
+        VolatilityState::High => 2.0,
+        VolatilityState::Expanding => 3.0,
+    };
+    let liq = match f.liquidity_state {
+        LiquidityState::Stale => 0.0,
+        LiquidityState::Thin => 1.0,
+        LiquidityState::Healthy => 2.0,
+    };
+    // FeatureVector carries f64; retrieval vectors are f32 (halves the
+    // row and doubles the scan rate — precision beyond f32 is noise here).
+    [
+        f.return_1 as f32,
+        f.return_5 as f32,
+        f.return_20 as f32,
+        f.atr_pct as f32,
+        f.volume_ratio as f32,
+        f.spread_bps as f32,
+        trend,
+        vol,
+        liq,
+    ]
+}
+
 /// Reference to a persisted feature snapshot (row in `feature_snapshots`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FeatureSnapshotRef {
@@ -232,6 +267,30 @@ mod tests {
     #[test]
     fn insufficient_history_returns_none() {
         assert!(compute(&fixture_bars()[..25], 2.0).is_none());
+    }
+
+    #[test]
+    fn vector9_encoding_is_stable_and_total() {
+        let features = compute(&fixture_bars(), 2.0).unwrap();
+        let v = to_vector9(&features);
+        assert_eq!(v.len(), 9);
+        assert!((v[0] as f64 - features.return_1).abs() < 1e-6);
+        assert_eq!(v[6], 2.0, "Positive trend encodes as 2");
+        assert!(v[7] >= 0.0 && v[7] <= 3.0, "vol in 0..=3");
+        // Every enum combination encodes without panic.
+        let all = FeatureVector {
+            return_1: 0.0,
+            return_5: 0.0,
+            return_20: 0.0,
+            atr_pct: 0.0,
+            volume_ratio: 0.0,
+            spread_bps: 0.0,
+            trend_state: TrendState::Negative,
+            volatility_state: VolatilityState::Expanding,
+            liquidity_state: LiquidityState::Stale,
+        };
+        let encoded = to_vector9(&all);
+        assert_eq!((encoded[6], encoded[7], encoded[8]), (0.0, 3.0, 0.0));
     }
 
     #[test]

@@ -161,6 +161,7 @@ pub fn run_tick(
             &signature,
             &hash,
             &serde_json::to_string(&features).expect("features serialize"),
+            features::to_vector9(&features),
         )
     })?;
 

@@ -21,6 +21,7 @@ pub mod compaction;
 pub mod config;
 pub mod error;
 pub mod graph;
+pub mod knn;
 pub mod ledger;
 pub mod persistence;
 pub mod retrieval;
