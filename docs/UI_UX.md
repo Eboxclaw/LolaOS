@@ -1,5 +1,9 @@
 # UI/UX — Requirements (carve-out partially lifted 2026-11-11)
 
+> The interface concept now lives in **[LORD.md](LORD.md)**: minimalist
+> Obsidian-like app with plugins and chat, LORD as the state-machine
+> mascot, SDK as background service. Requirements below remain binding.
+
 Status: the **requirements below are owner-stated and locked**; visual
 design, layout craft and motion remain a future discussion. Stack is
 already decided independently (ADR-026/027): Compose Multiplatform over

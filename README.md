@@ -22,6 +22,7 @@ process, no sidecars, mobile constraints respected from day one.
 **Process:** [ROADMAP — slices & exit criteria](docs/ROADMAP.md) ·
 [DECISIONS — ADR log 001–037](docs/DECISIONS.md) ·
 [RESEARCH — filtered ledger, LFM-vertical](docs/RESEARCH.md) ·
+[LORD — the interface & mascot](docs/LORD.md) ·
 [BENCHMARKS — recorded numbers vs budgets](docs/BENCHMARKS.md)
 
 ## Status
