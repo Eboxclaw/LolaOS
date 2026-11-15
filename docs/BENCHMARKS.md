@@ -25,7 +25,8 @@ thesis (MOBILE_FIRST.md §1) now has numbers behind it.
 | `bucket_knn_top8` (JSON candidates — pre-SP1 shape) | **8.18 ms** | superseded by SP1; kept as the cautionary baseline |
 | `cache_hit_hot` (**SP2**: RAM decision-cache hit, 9-dependency key) | **63 ns** | gate was < 5 µs — beaten 80×. Hits never touch SQLite; invalidation by dependency-prefix (policy/schema bumps) tested |
 | `bucket_knn_numeric` (**SP1**: numeric side-table + compact rows + dist² ranking) | **859 ns** | **9,500× vs JSON**; gate was < 300 µs — beaten by 350×. The entire retrieval stages 2–5 now fit in ~1 ms |
-| `decision_insert` (snapshot + decision row write) | **133 µs** | — | WAL write cost per tick |
+| `decision_insert` (F4: snapshot + vector row + decision, one burst) | **214 µs** | grew from 133 µs: SP1 added the vector-row write (2 rows/tick); NORMAL durability removed the per-commit fsync |
+| **F4 write-tail gate** (10k pairs, NORMAL, warm) | **p50 118 µs · p99 379 µs** | gate p99 < 1 ms ✅. Finding: ~10 writes per 10k pause 10–23 ms at OS writeback boundaries — environmental, scheduler-owned between ticks (checkpoints measured separately: max 21 ms). The autocheckpoint stall (28–37 ms in-thread) that motivated F4 was FOUND BY THIS TEST and fixed: autocheckpoint off, explicit `checkpoint()` maintenance |
 
 ⚠️ **`bucket_knn_top8` is within budget but too close to it.** The proxy
 fetches 512 `features_json` TEXT payloads and ranks on a byte-length

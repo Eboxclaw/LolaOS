@@ -183,8 +183,12 @@ permissions requested lazily per tool.
   loop overhead (score indexing, K strides); F2 q8 KV halves the bytes.*
 - **F2** — q8_0 KV for the 6 global layers (−73% memory; NIAH + ppl gates
   from SB).
-- **F4** — SQLite pack (NORMAL, prepare_cached, batched decision txns,
-  checkpoint off-thread; p99 gate).
+- **F4 ✅** — SQLite pack: `open_fast` profile (WAL + NORMAL, crash-safe;
+  ADR-025 model), TickTxn (one commit per tick, rollback on drop),
+  prepare_cached on the hottest statements, autocheckpoint off → explicit
+  `checkpoint()` maintenance (the tail test found the 28–37 ms in-thread
+  stall and drove the fix). Measured: p50 118 µs, p99 379 µs (<1 ms ✅);
+  OS writeback pauses recorded as scheduler-owned.
 - **F3/F6** — prefix-KV session persistence + d1 state-prefix caching
   (TTFT gates; KV-hash correctness).
 - **F5/F7** — NEON exp (Android-weighted) + prompt-lookup speculative
