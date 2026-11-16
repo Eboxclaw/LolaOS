@@ -3,6 +3,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 use lola_memory::cache::{CacheKey, DecisionCache};
+use lola_memory::graph::query::EdgeHotCache;
 use lola_memory::ledger::LedgerWriter;
 use uuid::Uuid;
 
@@ -158,6 +159,57 @@ fn bench_retrieval(c: &mut Criterion) {
         b.iter(|| {
             let hit = hot.get(black_box(&cache_key));
             black_box(hit.is_some())
+        })
+    });
+
+    // SP3: graph traversal on a seeded hub (10k edges from one node),
+    // warm cache vs cold two-hop SQL.
+    {
+        conn.execute_batch(
+            "INSERT OR IGNORE INTO graph_nodes (node_id, node_type, canonical_key,
+                 created_at_ns, updated_at_ns)
+                 VALUES ('hub', 'Instrument', 'BTC-PERP', 1, 1);
+             INSERT OR IGNORE INTO graph_nodes (node_id, node_type, canonical_key,
+                 created_at_ns, updated_at_ns)
+                 VALUES ('hub2', 'MarketRegime', 'UpTrend', 1, 1);",
+        )
+        .expect("nodes");
+        let tx = conn.unchecked_transaction().expect("tx");
+        {
+            let mut e = tx
+                .prepare(
+                    "INSERT OR IGNORE INTO graph_edges (edge_id, source_node_id, relation,
+                         target_node_id, attributes_json, source_type, source_ref, created_at_ns)
+                     VALUES (?1, 'hub', 'MatchesPattern', 'hub2', '{}', 'bench', 'seed', 1)",
+                )
+                .expect("prepare edge");
+            for i in 0..10_000 {
+                e.execute(rusqlite::params![format!("be-{i}")])
+                    .expect("edge");
+            }
+        }
+        tx.commit().expect("commit");
+    }
+    let mut hot_edges = EdgeHotCache::new(256);
+    let now = 1_700_000_000_000_000_000;
+    // Warm the cache for the hub.
+    let _ = hot_edges.edges_for(conn, "hub", now).expect("warm load");
+    group.bench_function("graph_two_hop_cold_sql", |b| {
+        b.iter(|| {
+            let hops = lola_memory::graph::query::two_hop(
+                black_box(conn),
+                black_box("hub"),
+                black_box(now),
+                20,
+            )
+            .expect("hops");
+            black_box(hops.len())
+        })
+    });
+    group.bench_function("graph_edges_warm_cache", |b| {
+        b.iter(|| {
+            let edges = hot_edges.warm(black_box("hub")).expect("warm");
+            black_box(edges.len())
         })
     });
 
