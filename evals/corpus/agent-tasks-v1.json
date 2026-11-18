@@ -1,0 +1,32 @@
+{
+  "corpus_id": "agent-tasks-v1",
+  "schema_version": 1,
+  "description": "Fixed agent-typical prompt corpus for the SB quality gates (ADR-038). Used by ppl-delta, token-identity and golden drift measurements once the real oracle runs (S2.c). The prompts cover the shapes where quality regressions hide: tool-call formatting, transcript edits, multi-turn continuity, decision-style enumeration.",
+  "prompts": [
+    {
+      "id": "tool-call-format",
+      "prompt": "Call the calendar_create_event tool to schedule 'Review LOLA benchmarks' tomorrow at 14:00 for 45 minutes. Emit the tool call in the LFM3 XML format with parameter tags.",
+      "expected_shape": "xml-tool-call"
+    },
+    {
+      "id": "transcript-edit",
+      "prompt": "Here is the assistant's previous reply: 'The entry was rejected because volatility was expanding.' Rewrite it to be more concise while keeping the same meaning.",
+      "expected_shape": "short-paraphrase"
+    },
+    {
+      "id": "multi-turn-continuity",
+      "prompt": "In our earlier session we decided to benchmark A0 before A1. Continue from there: what should the A0 acceptance criteria cover, and which instrument should we replay first?",
+      "expected_shape": "enumeration"
+    },
+    {
+      "id": "decision-explanation",
+      "prompt": "Explain why decision d-41 was rejected by the risk engine. List the failed checks in order and what the operator should verify before re-submitting.",
+      "expected_shape": "enumeration"
+    },
+    {
+      "id": "short-grounded-answer",
+      "prompt": "Using only the knowledge graph, list the instruments whose last regime was UpTrend and their liquidity state.",
+      "expected_shape": "grounded-list"
+    }
+  ]
+}

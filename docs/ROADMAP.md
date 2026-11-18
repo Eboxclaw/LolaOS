@@ -169,10 +169,12 @@ permissions requested lazily per tool.
 
 ## Fruits — benchmark-gated optimization slices (ADR-038, docs/OPTIMIZATIONS.md)
 
-- **SB** — Benchmark-harness expansion (gates first): quality mode on the
-  golden harness (token-identity, KL, ppl-Δ, needle-in-haystack @32K/64K),
-  TTFT session scripts, p99 write-loop, energy wrapper (powermetrics/
-  perfetto), engine `bench` subcommand for Android parity. **QAD gate:**
+- **SB** — Benchmark-harness expansion. **Quality infra ✅**: agent-tasks-v1
+  corpus (5 agent-typical shapes), ppl / ppl-Δ, needle-in-haystack probe,
+  token-identity + QualityGate defaults (≤0.5% ppl, ≥99.5% identity,
+  NIA required) — tested on synthetic distributions; the MODEL-GATED
+  numbers land once a backend (oracle/K5) produces logits. Still ahead:
+  TTFT session scripts, energy wrapper, engine `bench` subcommand. **QAD gate:**
   QAD-Q4_0 vs Q4_K_M vs Q8_0 on the golden set before any slot-A
   quantization (LFM3 QAD has no published evals — ADR-040).
 - **F1+F11** — global-attn accumulation restructure + KV SoA layout

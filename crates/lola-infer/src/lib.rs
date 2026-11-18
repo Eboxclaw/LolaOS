@@ -19,4 +19,5 @@ pub mod infer;
 pub mod kernels;
 pub mod llamacpp;
 pub mod oracle;
+pub mod quality;
 pub mod residency;
