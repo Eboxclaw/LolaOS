@@ -6,5 +6,6 @@
 pub mod conv7;
 pub mod fused;
 pub mod global_attn;
+pub mod kvq;
 pub mod quality;
 pub mod swa;
