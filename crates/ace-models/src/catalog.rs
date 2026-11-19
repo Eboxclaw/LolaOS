@@ -12,8 +12,8 @@ pub struct ModelCatalog {
 
 impl ModelCatalog {
     pub fn from_json(source: &str) -> Result<Self, ModelCatalogError> {
-        let catalog: Self =
-            serde_json::from_str(source).map_err(|error| ModelCatalogError::InvalidJson(error.to_string()))?;
+        let catalog: Self = serde_json::from_str(source)
+            .map_err(|error| ModelCatalogError::InvalidJson(error.to_string()))?;
         catalog.validate()?;
         Ok(catalog)
     }
@@ -112,7 +112,8 @@ impl ModelArtifact {
         if !is_sha256(&self.sha256) {
             return Err(ArtifactValidationError::InvalidSha256);
         }
-        if self.file_name == "." || self.file_name == ".."
+        if self.file_name == "."
+            || self.file_name == ".."
             || self.file_name.contains('/')
             || self.file_name.contains('\\')
         {
@@ -186,9 +187,9 @@ pub enum ArtifactValidationError {
 
 fn is_model_id(value: &str) -> bool {
     !value.is_empty()
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || b".-_".contains(&byte))
+        && value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b".-_".contains(&byte)
+        })
 }
 
 fn is_hugging_face_repo(value: &str) -> bool {
@@ -201,9 +202,9 @@ fn is_hugging_face_repo(value: &str) -> bool {
 
 fn is_repo_segment(value: &str) -> bool {
     !value.is_empty()
-        && value.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || b"-_.".contains(&byte)
-        })
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
 }
 
 fn is_pinned_revision(value: &str) -> bool {
