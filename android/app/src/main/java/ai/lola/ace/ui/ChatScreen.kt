@@ -40,7 +40,6 @@ import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelTransferManager
 import ai.lola.ace.inference.InferenceChatMessage
 import ai.lola.ace.inference.LocalInferenceBackend
-import ai.lola.ace.inference.LocalInferenceBackendProvider
 import ai.lola.ace.inference.LocalInferenceState
 import ai.lola.ace.inference.ReferenceSessionConfig
 import kotlinx.coroutines.CancellationException
@@ -59,9 +58,9 @@ fun ChatScreen(
     model: ModelArtifactSummary?,
     catalogueAvailable: Boolean,
     transferManager: ModelTransferManager,
+    backend: LocalInferenceBackend,
     onOpenModels: () -> Unit,
 ) {
-    val backend = remember { LocalInferenceBackendProvider.get() }
     val runtimeState by backend.state.collectAsState()
     val scope = rememberCoroutineScope()
     val chatLines = remember { mutableStateListOf<ChatLine>() }
