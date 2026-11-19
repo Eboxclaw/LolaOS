@@ -12,6 +12,7 @@ The first vertical slice is **LFM3-1.7B text streaming** on a Google Pixel 8 Pro
 
 ## Canonical documents
 
+- [Brand identity](BRAND_IDENTITY.md) — official LOLA logo and mascot usage.
 - [Architecture](ARCHITECTURE.md) — runtime components, ownership and execution paths.
 - [Inference contract](INFERENCE_CONTRACT.md) — backend-neutral API, streaming, state and cancellation.
 - [Android POC](ANDROID_POC.md) — app modules, screens, offline acceptance.
