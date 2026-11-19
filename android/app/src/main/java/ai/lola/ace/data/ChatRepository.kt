@@ -184,9 +184,9 @@ class ChatRepository(context: Context) {
 
         override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             // Schema changes must use explicit forward migrations; never silently discard chat history.
-            if (oldVersion < 1 || newVersion < 1) {
-                throw IllegalStateException("Unsupported chat database migration")
-            }
+            throw IllegalStateException(
+                "Missing explicit chat database migration from $oldVersion to $newVersion",
+            )
         }
     }
 
@@ -212,4 +212,14 @@ object ConversationTitle {
             normalized.take(MAX_TITLE_LENGTH - 1).trimEnd() + "…"
         }
     }
+}
+
+object ChatRepositoryProvider {
+    @Volatile
+    private var instance: ChatRepository? = null
+
+    fun get(context: Context): ChatRepository =
+        instance ?: synchronized(this) {
+            instance ?: ChatRepository(context.applicationContext).also { instance = it }
+        }
 }
