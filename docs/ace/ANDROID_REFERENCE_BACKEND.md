@@ -25,6 +25,7 @@ This is intentionally conservative. The build must remain runnable on the select
 
 ## Session and streaming model
 
+- Sampling follows Liquid AI's published LFM3 recommendation: temperature 0.1, top-k 50 and repeat penalty 1.1. The reference sampler is explicitly limited to those samplers (plus the final distribution draw), instead of inheriting unrelated generic top-p/min-p/DRY defaults.
 - One model handle is loaded and can own multiple inference sessions.
 - Each session owns a separate llama context, batch, sampler and cancellation flag.
 - The first implementation re-evaluates the complete supplied chat history for every turn and clears that session's KV memory before prefill. It does not yet implement incremental conversation KV reuse.
