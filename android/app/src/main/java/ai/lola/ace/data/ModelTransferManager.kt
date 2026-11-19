@@ -60,7 +60,14 @@ class ModelTransferManager(context: Context) {
         if (deleting.contains(model.id)) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.DELETING)
         }
-        if (store.installedRecord(model) != null) {
+        val installed = runCatching { store.installedRecord(model) }.getOrElse { error ->
+            return ModelTransferSnapshot(
+                modelId = model.id,
+                stage = ModelTransferStage.FAILED,
+                message = error.message ?: "Não foi possível ler o registo de modelos",
+            )
+        }
+        if (installed != null) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED)
         }
         val partialBytes = runCatching { store.partialFile(model).length() }.getOrDefault(0L)
@@ -93,7 +100,17 @@ class ModelTransferManager(context: Context) {
 
         if (deleting.contains(model.id)) return false
 
-        if (store.installedRecord(model) != null) {
+        val installed = runCatching { store.installedRecord(model) }.getOrElse { error ->
+            publish(
+                ModelTransferSnapshot(
+                    modelId = model.id,
+                    stage = ModelTransferStage.FAILED,
+                    message = error.message ?: "Não foi possível ler o registo de modelos",
+                ),
+            )
+            return false
+        }
+        if (installed != null) {
             publish(ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED))
             return false
         }
