@@ -86,6 +86,7 @@ fun ChatScreen(
     var currentConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     var historyLoading by remember { mutableStateOf(true) }
+    var conversationLoading by remember { mutableStateOf(false) }
 
     DisposableEffect(transferManager) {
         val subscription = transferManager.subscribe { transferVersion++ }
@@ -110,6 +111,8 @@ fun ChatScreen(
             }
             refreshConversations()
             currentConversationId = initialConversationId
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             localError = error.message ?: "Não foi possível abrir o histórico local."
         } finally {
@@ -119,6 +122,7 @@ fun ChatScreen(
 
     LaunchedEffect(currentConversationId) {
         val conversationId = currentConversationId ?: return@LaunchedEffect
+        conversationLoading = true
         try {
             val messages = withContext(Dispatchers.IO) {
                 repository.loadMessages(conversationId)
@@ -130,8 +134,12 @@ fun ChatScreen(
                     .map { ChatLine(role = it.role, text = it.content) },
             )
             localError = null
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             localError = error.message ?: "Não foi possível carregar esta conversa."
+        } finally {
+            conversationLoading = false
         }
     }
 
@@ -180,6 +188,7 @@ fun ChatScreen(
 
     fun createNewConversation() {
         if (generating) return
+        conversationLoading = true
         scope.launch {
             try {
                 val newId = withContext(Dispatchers.IO) {
@@ -189,8 +198,11 @@ fun ChatScreen(
                 refreshConversations()
                 showHistory = false
                 localError = null
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 localError = error.message ?: "Não foi possível criar uma conversa."
+                conversationLoading = false
             }
         }
     }
@@ -200,6 +212,7 @@ fun ChatScreen(
             showHistory = false
             return
         }
+        conversationLoading = true
         currentConversationId = conversationId
         showHistory = false
         localError = null
@@ -245,7 +258,7 @@ fun ChatScreen(
     fun sendMessage() {
         val text = input.trim()
         val conversationId = currentConversationId
-        if (text.isEmpty() || !sessionReady || generating || conversationId == null) return
+        if (text.isEmpty() || !sessionReady || generating || conversationLoading || conversationId == null) return
 
         val history = buildList {
             add(
@@ -539,13 +552,13 @@ fun ChatScreen(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    enabled = sessionReady && !generating && currentConversationId != null,
+                    enabled = sessionReady && !generating && !conversationLoading && currentConversationId != null,
                     placeholder = { Text("Escreve uma mensagem…") },
                     maxLines = 4,
                 )
                 Button(
                     onClick = ::sendMessage,
-                    enabled = sessionReady && !generating && input.isNotBlank() && currentConversationId != null,
+                    enabled = sessionReady && !generating && !conversationLoading && input.isNotBlank() && currentConversationId != null,
                 ) {
                     Text("Enviar")
                 }
