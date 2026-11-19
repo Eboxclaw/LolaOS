@@ -39,6 +39,7 @@ fun LolaAceApp() {
     val transferManager = remember(context) { ModelTransferManagerProvider.get(context) }
     val inferenceBackend = remember { LocalInferenceBackendProvider.get() }
     val inferenceState by inferenceBackend.state.collectAsState()
+    val latestMetrics by inferenceBackend.latestMetrics.collectAsState()
     val catalogResult = remember(context) {
         runCatching { ModelCatalogRepository(context).loadBundled() }
     }
@@ -91,6 +92,7 @@ fun LolaAceApp() {
                     modelCount = catalogResult.getOrNull()?.size ?: 0,
                     catalogueAvailable = catalogResult.isSuccess,
                     inferenceState = inferenceState,
+                    latestMetrics = latestMetrics,
                 )
             }
         }
