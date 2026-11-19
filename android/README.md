@@ -5,7 +5,7 @@ This is the first native Android application shell for LOLA ACE.
 ## Requirements
 
 - JDK 17
-- Android SDK Platform 37
+- Android SDK Platform 36
 - Android SDK Build Tools 36.0.0
 - Gradle 9.5.0
 - Android Studio with support for Android Gradle Plugin 9.3.0
