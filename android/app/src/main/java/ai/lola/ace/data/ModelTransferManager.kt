@@ -233,11 +233,9 @@ class ModelTransferManager(context: Context) {
                     throw IOException("O artefacto excede o limite local de 8 GiB.")
                 }
                 if (expectedTotal != null && responseCode != 416) {
-                    val bytesStillRequired = if (responseCode == HttpURLConnection.HTTP_PARTIAL) {
-                        expectedTotal - initialOffset
-                    } else {
-                        expectedTotal
-                    }
+                    // If Range was ignored (HTTP 200), opening the output truncates the old
+                    // partial file, freeing those bytes before the complete response is written.
+                    val bytesStillRequired = (expectedTotal - initialOffset).coerceAtLeast(0L)
                     if (bytesStillRequired > (freeBytes - DISK_SAFETY_MARGIN_BYTES).coerceAtLeast(0L)) {
                         throw IOException("Não há espaço livre suficiente para concluir a transferência.")
                     }
