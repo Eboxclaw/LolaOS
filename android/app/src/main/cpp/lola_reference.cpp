@@ -492,7 +492,6 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
         return -1;
     }
 
-    session->cancelled.store(false);
     llama_memory_clear(llama_get_memory(session->context), false);
     llama_sampler_reset(session->sampler);
 
@@ -539,6 +538,15 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
         return -1;
     }
     return 0;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeResetCancellation(
+    JNIEnv * /*env*/, jobject /*self*/, jlong session_handle) {
+    auto *session = from_handle<SessionHandle>(session_handle);
+    if (session != nullptr) {
+        session->cancelled.store(false);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
