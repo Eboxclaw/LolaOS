@@ -13,11 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ai.lola.ace.inference.LocalInferenceState
 
 @Composable
 fun DiagnosticsScreen(
     modelCount: Int,
     catalogueAvailable: Boolean,
+    inferenceState: LocalInferenceState,
 ) {
     Column(
         modifier = Modifier
@@ -38,9 +40,21 @@ fun DiagnosticsScreen(
 
         DiagnosticCard("CATÁLOGO", if (catalogueAvailable) "Carregado" else "Erro ao carregar")
         DiagnosticCard("MODELOS LISTADOS", modelCount.toString())
-        DiagnosticCard("MODELO RESIDENTE", "Nenhum")
-        DiagnosticCard("BACKEND", "Não ligado")
-        DiagnosticCard("DISPOSITIVO", "Ainda não detectado")
+        DiagnosticCard(
+            "MODELO RESIDENTE",
+            (inferenceState as? LocalInferenceState.Loaded)?.modelFileName ?: "Nenhum",
+        )
+        DiagnosticCard(
+            "BACKEND",
+            when (inferenceState) {
+                LocalInferenceState.Unloaded -> "Descarregado"
+                LocalInferenceState.Loading -> "A carregar"
+                is LocalInferenceState.Loaded -> "llama.cpp · sessão CPU local"
+                is LocalInferenceState.Error -> "Erro: ${inferenceState.message}"
+            },
+        )
+        DiagnosticCard("ABI DO APK", "arm64-v8a")
+        DiagnosticCard("DISPOSITIVO", "Não confirmado por teste físico")
         DiagnosticCard("TTFT / PREFILL / DECODE", "Sem medições")
         DiagnosticCard("MEMÓRIA / TEMPERATURA", "Sem medições")
 
@@ -49,7 +63,7 @@ fun DiagnosticsScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Text(
-                text = "As métricas só serão preenchidas quando existir um backend real e a integração Android fornecer medições do dispositivo.",
+                text = "O backend de referência já está ligado. TTFT, prefill, decode, memória e temperatura continuam sem medições físicas no Pixel.",
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
