@@ -41,7 +41,8 @@ This is intentionally conservative. The build must remain runnable on the select
 - No tools, file access, network tools, ReAct loop or agent permissions are exposed to the model.
 - No GPU, NPU, NNAPI or Tensor/GPU offload is claimed.
 - The model and context remain in memory until the user unloads them or the process exits.
-- Conversations are not persisted yet.
+- Conversations and messages are persisted in app-private SQLite storage. There is no cloud sync or app-level database encryption layer; data protection relies on the Android app sandbox and device security. The app manifest disables backup.
+- Conversation history is persisted, but the inference backend re-evaluates the supplied history on every turn; incremental KV-cache reuse and automatic history compaction are not implemented. The app's initial context budget is 2,048 tokens, so start a new conversation when the budget is reached.
 - Android model deletion is blocked while the model is loading or resident.
 - The reference runtime is not yet tested on a physical Pixel 8 Pro.
 - The CI build and JVM tests can establish compilation and policy contracts, but not successful LFM3 generation on device.
@@ -50,9 +51,10 @@ This is intentionally conservative. The build must remain runnable on the select
 ## Next validation steps
 
 1. Build the native ARM64 library in CI.
-2. Install the signed debug APK on a Pixel 8 Pro.
+2. Install the debug APK on a Pixel 8 Pro.
 3. Download the pinned model, confirm the SHA-256 and cold-load it.
 4. Run a fixed Portuguese prompt suite and compare the generated output with golden behaviour.
-5. Record cold-load time, prefill time, TTFT, decode tokens/s, peak PSS, context size, CPU frequency and thermal state.
-6. Add cancellation during prefill/decode, repeated load/unload and low-memory recovery device tests.
-7. Only then compare the reference backend against the LOLA Native Engine.
+5. Verify streaming, cancellation, repeat generation, unload/reload and deletion protection.
+6. Record cold-load time, prefill time, TTFT, decode tokens/s, peak PSS, context size, CPU frequency and thermal state.
+7. Add cancellation during prefill/decode, repeated load/unload and low-memory recovery device tests.
+8. Only then compare the reference backend against the LOLA Native Engine.
