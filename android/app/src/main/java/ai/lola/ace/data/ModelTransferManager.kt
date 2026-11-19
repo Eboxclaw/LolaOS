@@ -110,7 +110,6 @@ class ModelTransferManager(context: Context) {
                 message = "A preparar a transferência…",
             ),
         )
-        publish(task.snapshot)
         executor.execute { performDownload(model, task) }
         return true
     }
@@ -287,7 +286,7 @@ class ModelTransferManager(context: Context) {
                 sizeBytes = verified.first,
                 sha256 = verified.second,
             )
-            update(task,
+            task.update(
                 ModelTransferSnapshot(
                     modelId = model.id,
                     stage = ModelTransferStage.INSTALLED,
@@ -298,7 +297,7 @@ class ModelTransferManager(context: Context) {
             )
         } catch (error: Exception) {
             val wasCancelled = task.isCancelled()
-            update(task,
+            task.update(
                 ModelTransferSnapshot(
                     modelId = model.id,
                     stage = if (wasCancelled) ModelTransferStage.CANCELLED else ModelTransferStage.FAILED,
@@ -314,7 +313,6 @@ class ModelTransferManager(context: Context) {
             task.connection?.disconnect()
             task.connection = null
             active.remove(model.id, task)
-            // Preserve the terminal result instead of replacing it with a generic paused state.
             publish(task.snapshot)
         }
     }
@@ -392,7 +390,7 @@ class ModelTransferManager(context: Context) {
                 digest.update(buffer, 0, count)
             }
         }
-        return totalBytes to digest.digest().joinToString("") { "%02x".format(it) }
+        return totalBytes to digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
     }
 
     private fun update(task: TransferTask, snapshot: ModelTransferSnapshot) {
