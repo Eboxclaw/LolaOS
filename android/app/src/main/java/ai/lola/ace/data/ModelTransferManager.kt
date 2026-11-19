@@ -157,14 +157,22 @@ class ModelTransferManager(context: Context) {
             }
 
             check(task.isCancelled()) { "Transferência cancelada" }
-            val freeBytes = store.availableBytes()
-            if (freeBytes < MINIMUM_FREE_BYTES) {
-                throw IOException(
-                    "Espaço insuficiente. São necessários pelo menos 1,5 GiB livres para este modelo.",
-                )
+            val initialOffset = partFile.length()
+            if (initialOffset > MAX_ARTIFACT_BYTES) {
+                throw IOException("O ficheiro parcial excede o limite local de 8 GiB.")
             }
 
-            val initialOffset = partFile.length()
+            val freeBytes = store.availableBytes()
+            val minimumFreeBytes = if (initialOffset == 0L) {
+                MINIMUM_FREE_BYTES
+            } else {
+                MINIMUM_RESUME_FREE_BYTES
+            }
+            if (freeBytes < minimumFreeBytes) {
+                val requirement = if (initialOffset == 0L) "1,5 GiB" else "256 MiB"
+                throw IOException("Espaço insuficiente. São necessários pelo menos $requirement livres.")
+            }
+
             val connection = openFollowingRedirects(model.downloadUrl, initialOffset, task)
             task.connection = connection
             try {
@@ -266,7 +274,9 @@ class ModelTransferManager(context: Context) {
 
             val verified = hashFile(partFile, task)
             if (!verified.second.equals(model.sha256, ignoreCase = true)) {
-                partFile.delete()
+                if (partFile.exists() && !partFile.delete()) {
+                    throw IOException("O SHA-256 não corresponde ao catálogo e o ficheiro inválido não pôde ser removido.")
+                }
                 throw IOException("O SHA-256 do ficheiro não corresponde ao catálogo. A transferência foi descartada.")
             }
 
@@ -428,6 +438,7 @@ class ModelTransferManager(context: Context) {
         private const val MAX_REDIRECTS = 5
         private const val MAX_ARTIFACT_BYTES = 8L * 1024L * 1024L * 1024L
         private const val MINIMUM_FREE_BYTES = 1536L * 1024L * 1024L
+        private const val MINIMUM_RESUME_FREE_BYTES = 256L * 1024L * 1024L
         private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
     }
 }
