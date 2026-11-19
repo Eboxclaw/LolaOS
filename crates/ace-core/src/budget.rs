@@ -29,18 +29,34 @@ pub enum BudgetError {
 
 impl BudgetUsage {
     pub fn record_transition(&mut self, budget: &Budget) -> Result<(), BudgetError> {
-        Self::increment(&mut self.transitions, budget.max_transitions, BudgetError::TransitionsExceeded)
+        Self::increment(
+            &mut self.transitions,
+            budget.max_transitions,
+            BudgetError::TransitionsExceeded,
+        )
     }
 
     pub fn record_model_call(&mut self, budget: &Budget) -> Result<(), BudgetError> {
-        Self::increment(&mut self.model_calls, budget.max_model_calls, BudgetError::ModelCallsExceeded)
+        Self::increment(
+            &mut self.model_calls,
+            budget.max_model_calls,
+            BudgetError::ModelCallsExceeded,
+        )
     }
 
     pub fn record_tool_call(&mut self, budget: &Budget) -> Result<(), BudgetError> {
-        Self::increment(&mut self.tool_calls, budget.max_tool_calls, BudgetError::ToolCallsExceeded)
+        Self::increment(
+            &mut self.tool_calls,
+            budget.max_tool_calls,
+            BudgetError::ToolCallsExceeded,
+        )
     }
 
-    pub fn record_input_tokens(&mut self, count: u64, budget: &Budget) -> Result<(), BudgetError> {
+    pub fn record_input_tokens(
+        &mut self,
+        count: u64,
+        budget: &Budget,
+    ) -> Result<(), BudgetError> {
         let next = self.input_tokens.saturating_add(count);
         if next > budget.max_input_tokens {
             return Err(BudgetError::InputTokensExceeded);
@@ -49,7 +65,11 @@ impl BudgetUsage {
         Ok(())
     }
 
-    pub fn record_output_tokens(&mut self, count: u64, budget: &Budget) -> Result<(), BudgetError> {
+    pub fn record_output_tokens(
+        &mut self,
+        count: u64,
+        budget: &Budget,
+    ) -> Result<(), BudgetError> {
         let next = self.output_tokens.saturating_add(count);
         if next > budget.max_output_tokens {
             return Err(BudgetError::OutputTokensExceeded);
@@ -58,7 +78,11 @@ impl BudgetUsage {
         Ok(())
     }
 
-    fn increment(value: &mut u32, limit: u32, error: BudgetError) -> Result<(), BudgetError> {
+    fn increment(
+        value: &mut u32,
+        limit: u32,
+        error: BudgetError,
+    ) -> Result<(), BudgetError> {
         let next = value.saturating_add(1);
         if next > limit {
             return Err(error);
