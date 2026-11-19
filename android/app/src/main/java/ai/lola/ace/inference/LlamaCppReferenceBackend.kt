@@ -112,6 +112,8 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
 
         val producer = this
         val cancelled = AtomicBoolean(false)
+        nativeResetCancellation(handle)
+
         val sink = object : NativeTokenSink {
             override fun onToken(token: String) {
                 if (token.isNotEmpty()) producer.trySend(token)
@@ -229,6 +231,7 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
         maxOutputTokens: Int,
         sink: NativeTokenSink,
     ): Int
+    private external fun nativeResetCancellation(sessionHandle: Long)
     private external fun nativeCancel(sessionHandle: Long)
     private external fun nativeCloseSession(sessionHandle: Long)
     private external fun nativeUnloadModel(modelHandle: Long)
