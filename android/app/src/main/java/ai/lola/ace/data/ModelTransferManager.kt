@@ -192,6 +192,7 @@ class ModelTransferManager(context: Context) {
             task.connection = connection
             try {
                 val responseCode = connection.responseCode
+                var expectedResponseBytes: Long? = null
                 val expectedTotal = when (responseCode) {
                     HttpURLConnection.HTTP_OK -> {
                         // A server that ignores Range returns the whole file; overwrite the old partial.
@@ -203,6 +204,15 @@ class ModelTransferManager(context: Context) {
                         ) ?: throw IOException("O servidor enviou um Content-Range inválido.")
                         if (range.start != initialOffset) {
                             throw IOException("O servidor retomou a transferência no byte errado.")
+                        }
+                        expectedResponseBytes = try {
+                            Math.addExact(Math.subtractExact(range.endInclusive, range.start), 1L)
+                        } catch (_: ArithmeticException) {
+                            throw IOException("O servidor enviou um intervalo de bytes inválido.")
+                        }
+                        val responseLength = connection.contentLengthLong
+                        if (responseLength >= 0L && responseLength != expectedResponseBytes) {
+                            throw IOException("O tamanho do bloco HTTP não corresponde ao Content-Range.")
                         }
                         range.totalBytes
                     }
@@ -275,6 +285,11 @@ class ModelTransferManager(context: Context) {
                         }
                     }
 
+                    if (expectedResponseBytes != null &&
+                        downloaded - startingBytes != expectedResponseBytes
+                    ) {
+                        throw IOException("O servidor não enviou o número de bytes declarado no Content-Range.")
+                    }
                     if (expectedTotal != null && partFile.length() != expectedTotal) {
                         throw IOException(
                             "Transferência incompleta: ${partFile.length()} de $expectedTotal bytes.",
