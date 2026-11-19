@@ -18,7 +18,7 @@ The repository currently does not include the Gradle Wrapper JAR. Install Gradle
 gradle -p android :app:testDebugUnitTest :app:assembleDebug
 ```
 
-The first native build fetches the pinned llama.cpp source commit through CMake FetchContent. GitHub Actions provisions the pinned SDK, NDK, CMake and Gradle versions.
+The first native build fetches the pinned llama.cpp source commit through CMake FetchContent. GitHub Actions provisions the pinned SDK, NDK, CMake and Gradle versions, runs the unit tests, assembles the APK and publishes it as the `lola-ace-debug-arm64` workflow artifact for 14 days.
 
 ## Current screens
 
