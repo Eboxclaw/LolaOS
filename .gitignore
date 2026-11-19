@@ -5,3 +5,10 @@ data/
 *.db-shm
 .DS_Store
 .zcode/
+
+# Android / Gradle
+android/.gradle/
+android/local.properties
+android/**/build/
+.idea/
+*.iml
