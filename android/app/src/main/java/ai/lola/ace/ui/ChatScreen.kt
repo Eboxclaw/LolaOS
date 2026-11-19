@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -83,6 +84,7 @@ fun ChatScreen(
     var conversations by remember { mutableStateOf<List<StoredConversation>>(emptyList()) }
     var currentConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showHistory by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
     var historyLoading by remember { mutableStateOf(true) }
     var conversationLoading by remember { mutableStateOf(false) }
 
@@ -214,6 +216,30 @@ fun ChatScreen(
         currentConversationId = conversationId
         showHistory = false
         localError = null
+    }
+
+    fun deleteCurrentConversation() {
+        val deletingId = currentConversationId ?: return
+        if (generating || conversationLoading) return
+
+        showDeleteConfirmation = false
+        conversationLoading = true
+        scope.launch {
+            try {
+                val nextConversationId = withContext(Dispatchers.IO) {
+                    repository.deleteConversation(deletingId)
+                    repository.latestConversationId() ?: repository.createConversation()
+                }
+                currentConversationId = nextConversationId
+                refreshConversations()
+                localError = null
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                conversationLoading = false
+                localError = error.message ?: "Não foi possível apagar esta conversa."
+            }
+        }
     }
 
     fun loadModel() {
@@ -350,6 +376,11 @@ fun ChatScreen(
                 onClick = ::createNewConversation,
                 enabled = !generating && !historyLoading && !conversationLoading,
             ) { Text("Nova conversa") }
+            TextButton(
+                onClick = { showDeleteConfirmation = true },
+                enabled = currentConversationId != null &&
+                    !generating && !historyLoading && !conversationLoading,
+            ) { Text("Apagar") }
             Spacer(modifier = Modifier.weight(1f))
             Column {
                 TextButton(
@@ -373,6 +404,26 @@ fun ChatScreen(
                     }
                 }
             }
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Apagar conversa?") },
+                text = {
+                    Text("Esta conversa e as respectivas mensagens serão removidas deste dispositivo. Os modelos instalados não serão afectados.")
+                },
+                confirmButton = {
+                    TextButton(onClick = ::deleteCurrentConversation) {
+                        Text("Apagar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancelar")
+                    }
+                },
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
