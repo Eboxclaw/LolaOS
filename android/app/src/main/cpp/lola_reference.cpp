@@ -55,6 +55,54 @@ void throw_java(JNIEnv *env, const char *class_name, const std::string &message)
     }
 }
 
+void append_utf8(std::string &output, uint32_t codepoint) {
+    if (codepoint <= 0x7f) {
+        output.push_back(static_cast<char>(codepoint));
+    } else if (codepoint <= 0x7ff) {
+        output.push_back(static_cast<char>(0xc0 | (codepoint >> 6)));
+        output.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else if (codepoint <= 0xffff) {
+        output.push_back(static_cast<char>(0xe0 | (codepoint >> 12)));
+        output.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+        output.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else {
+        output.push_back(static_cast<char>(0xf0 | (codepoint >> 18)));
+        output.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+        output.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+        output.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    }
+}
+
+// JNI GetStringUTFChars returns Modified UTF-8, not standard UTF-8. Convert
+// UTF-16 explicitly so supplementary characters and embedded NUL are valid input.
+std::string jstring_to_utf8(JNIEnv *env, jstring value) {
+    if (value == nullptr) return {};
+
+    const jsize length = env->GetStringLength(value);
+    const jchar *chars = env->GetStringChars(value, nullptr);
+    if (chars == nullptr) return {};
+
+    std::string output;
+    output.reserve(static_cast<size_t>(length) * 3);
+    for (jsize i = 0; i < length; ++i) {
+        uint32_t codepoint = chars[i];
+        if (codepoint >= 0xd800 && codepoint <= 0xdbff) {
+            if (i + 1 < length && chars[i + 1] >= 0xdc00 && chars[i + 1] <= 0xdfff) {
+                const uint32_t low = chars[++i];
+                codepoint = 0x10000 + ((codepoint - 0xd800) << 10) + (low - 0xdc00);
+            } else {
+                codepoint = 0xfffd;
+            }
+        } else if (codepoint >= 0xdc00 && codepoint <= 0xdfff) {
+            codepoint = 0xfffd;
+        }
+        append_utf8(output, codepoint);
+    }
+
+    env->ReleaseStringChars(value, chars);
+    return output;
+}
+
 std::u16string utf8_to_utf16_complete(const std::string &input, size_t &consumed) {
     std::u16string output;
     size_t i = 0;
@@ -156,6 +204,7 @@ bool callback_cancelled(JNIEnv *env, jobject sink, jmethodID is_cancelled) {
 bool decode_prompt(SessionHandle *session, const std::vector<llama_token> &tokens) {
     const size_t total = tokens.size();
     for (size_t start = 0; start < total; start += PROMPT_BATCH_TOKENS) {
+        if (session->cancelled.load()) return false;
         const size_t count = std::min(
             static_cast<size_t>(PROMPT_BATCH_TOKENS),
             total - start);
@@ -261,16 +310,16 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeLoadModel(
         return 0;
     }
 
-    const char *path = env->GetStringUTFChars(model_path, nullptr);
-    if (path == nullptr) {
+    const std::string path = jstring_to_utf8(env, model_path);
+    if (path.empty()) {
+        throw_java(env, "java/lang/IllegalArgumentException", "Model path is empty");
         return 0;
     }
 
     llama_model_params params = llama_model_default_params();
     params.n_gpu_layers = 0; // CPU reference baseline; no GPU/NPU assumption.
 
-    llama_model *model = llama_model_load_from_file(path, params);
-    env->ReleaseStringUTFChars(model_path, path);
+    llama_model *model = llama_model_load_from_file(path.c_str(), params);
 
     if (model == nullptr) {
         throw_java(env, "java/lang/IllegalStateException",
@@ -421,19 +470,8 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
             return -1;
         }
 
-        const char *role_chars = env->GetStringUTFChars(role, nullptr);
-        const char *content_chars = env->GetStringUTFChars(content, nullptr);
-        if (role_chars == nullptr || content_chars == nullptr) {
-            if (role_chars != nullptr) env->ReleaseStringUTFChars(role, role_chars);
-            if (content_chars != nullptr) env->ReleaseStringUTFChars(content, content_chars);
-            env->DeleteLocalRef(role);
-            env->DeleteLocalRef(content);
-            return -1;
-        }
-        role_strings.emplace_back(role_chars);
-        content_strings.emplace_back(content_chars);
-        env->ReleaseStringUTFChars(role, role_chars);
-        env->ReleaseStringUTFChars(content, content_chars);
+        role_strings.emplace_back(jstring_to_utf8(env, role));
+        content_strings.emplace_back(jstring_to_utf8(env, content));
         env->DeleteLocalRef(role);
         env->DeleteLocalRef(content);
     }
@@ -496,6 +534,7 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
     llama_sampler_reset(session->sampler);
 
     if (!decode_prompt(session, prompt_tokens)) {
+        if (session->cancelled.load()) return 1;
         throw_java(env, "java/lang/IllegalStateException",
                    "llama.cpp failed while processing the prompt");
         return -1;
