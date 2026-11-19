@@ -32,6 +32,7 @@ data class ModelTransferSnapshot(
     val bytesDownloaded: Long = 0L,
     val totalBytes: Long? = null,
     val message: String? = null,
+    val inUse: Boolean = false,
 ) {
     val progress: Float?
         get() = totalBytes?.takeIf { it > 0L }?.let {
@@ -57,7 +58,7 @@ class ModelTransferManager(context: Context) {
     }
 
     fun snapshot(model: ModelArtifactSummary): ModelTransferSnapshot {
-        active[model.id]?.let { return it.snapshot }
+        active[model.id]?.let { return it.snapshot.copy(inUse = inUseModels.contains(model.id)) }
         if (deleting.contains(model.id)) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.DELETING)
         }
@@ -69,7 +70,7 @@ class ModelTransferManager(context: Context) {
             )
         }
         if (installed != null) {
-            return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED)
+            return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED, inUse = inUseModels.contains(model.id))
         }
         val partialBytes = runCatching { store.partialFile(model).length() }.getOrDefault(0L)
         return if (partialBytes > 0L) {
@@ -149,6 +150,9 @@ class ModelTransferManager(context: Context) {
         } else {
             inUseModels.remove(modelId)
         }
+        val current = active[modelId]?.snapshot
+            ?: ModelTransferSnapshot(modelId, ModelTransferStage.INSTALLED)
+        publish(current.copy(inUse = inUse))
     }
 
     fun isModelInUse(modelId: String): Boolean = inUseModels.contains(modelId)
