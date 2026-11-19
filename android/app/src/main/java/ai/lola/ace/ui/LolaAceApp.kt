@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelCatalogRepository
+import ai.lola.ace.data.ModelTransferManager
+import ai.lola.ace.data.ModelTransferManagerProvider
 
 private enum class AceDestination(val label: String, val symbol: String) {
     CHAT("Conversas", "◉"),
@@ -32,6 +34,7 @@ private enum class AceDestination(val label: String, val symbol: String) {
 @Composable
 fun LolaAceApp() {
     val context = LocalContext.current
+    val transferManager = remember(context) { ModelTransferManagerProvider.get(context) }
     val catalogResult = remember(context) {
         runCatching { ModelCatalogRepository(context).loadBundled() }
     }
@@ -75,6 +78,7 @@ fun LolaAceApp() {
                 AceDestination.MODELS -> ModelsScreen(
                     models = catalogResult.getOrNull().orEmpty(),
                     catalogueError = catalogResult.exceptionOrNull()?.message,
+                    transferManager = transferManager,
                 )
                 AceDestination.DIAGNOSTICS -> DiagnosticsScreen(
                     modelCount = catalogResult.getOrNull()?.size ?: 0,
