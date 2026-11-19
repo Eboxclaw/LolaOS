@@ -77,8 +77,11 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
                     mutableState.value = LocalInferenceState.Loaded(modelFile.name)
                 }
             } catch (error: CancellationException) {
-                modelHandle = 0L
-                mutableState.value = LocalInferenceState.Unloaded
+                mutableState.value = if (modelHandle != 0L) {
+                    LocalInferenceState.Loaded(modelFile.name)
+                } else {
+                    LocalInferenceState.Unloaded
+                }
                 throw error
             } catch (error: LinkageError) {
                 modelHandle = 0L
@@ -231,9 +234,10 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             withContext(NonCancellable + Dispatchers.IO) {
                 nativeUnloadModel(handle)
                 if (modelHandle == handle) modelHandle = 0L
+                mutableState.value = LocalInferenceState.Unloaded
             }
         }
-        mutableState.value = LocalInferenceState.Unloaded
+        if (modelHandle == 0L) mutableState.value = LocalInferenceState.Unloaded
     }
 
     private interface NativeTokenSink {
