@@ -1,29 +1,35 @@
-# LOLA brand identity
+# LOLA brand identity — canonical assets
 
-The project owner has designated two supplied image assets as the official LOLA identity:
+The project owner has corrected the earlier asset identification. The authoritative LOLA identity is the original **White Pearl** and **Obsidian Blue** brand artwork, including the genuine mascot and logo.
 
-1. **LOLA logo** — the primary brand mark.
-2. **LOLA mascot** — the character/mascot artwork.
+## Canonical identity
 
-These are authoritative project assets, not inspiration references. Do not redraw, reinterpret, recolour, crop destructively or generate substitutes. Preserve the original source files and their transparency/aspect ratio.
+- **White Pearl** — official original LOLA brand artwork.
+- **Obsidian Blue** — official original LOLA brand artwork.
 
-## Intended Android use
+These names, and the original supplied master artwork for each, supersede the image previews that were first identified in this conversation. The earlier previews are not authoritative and must not be used as the source for app icons, splash screens, onboarding or marketing assets.
 
-- Use the **logo** for the app's brand mark, launcher/adaptive icon and compact identity placements.
-- Use the **mascot** for the welcome/empty-conversation state, first-run onboarding and selected friendly status surfaces.
-- Keep the chat itself readable and low-latency; the mascot must not consume space in every message row.
-- Do not use the mascot as a loading animation until a separate animation asset is supplied or approved.
-- Do not stretch either asset. Derive density-specific or cropped variants only from the original master files and document each derivative.
+Do not infer a logo/mascot role from the colour name alone. Preserve the exact source-to-role mapping supplied with the canonical original files. Do not redraw, reinterpret, recolour, crop destructively, or generate substitutes.
+
+## Android usage
+
+Once the original master files are added to the repository:
+
+- Use the canonical logo master for the application mark and launcher/adaptive icon.
+- Use the canonical mascot master for welcome, onboarding and selected empty-state surfaces.
+- Keep the chat transcript compact and readable; do not put mascot artwork in every message row.
+- Do not animate either master unless an approved animation asset is supplied.
+- Preserve the original aspect ratio, transparency, colour profile and source dimensions. Generate density-specific derivatives only from the masters and document them.
 
 ## Source asset handling
 
-The images were supplied as visual previews in the conversation. The original binary files were not exposed to the repository integration, so they are **not yet committed**.
+The original White Pearl and Obsidian Blue binary masters have not yet been committed to the repository. The previously supplied image previews must not be substituted.
 
-When the source files are available, keep untouched masters in:
+When the canonical source files are available, preserve untouched masters under:
 
-- `brand/lola-logo.<original-extension>`
-- `brand/lola-mascot.<original-extension>`
+- `brand/white-pearl.<original-extension>`
+- `brand/obsidian-blue.<original-extension>`
 
-Then add Android-optimised derivatives under `android/app/src/main/res/` while retaining the masters. Confirm the source dimensions, alpha channel, colour profile and licence/ownership before conversion.
+Add Android-optimised derivatives under `android/app/src/main/res/` while retaining the masters. Before conversion, record dimensions, alpha channel, colour profile, file format and the supplied logo/mascot role.
 
-Until then, the app must not embed approximations or generated substitutes.
+Until the canonical original files are present, keep the current Android brand surfaces neutral and do not embed approximations.
