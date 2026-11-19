@@ -81,28 +81,33 @@ fun ChatScreen(
         model?.let(transferManager::installedModelFile)
     }
 
+    suspend fun ensureChatSession() {
+        val selectedModel = model ?: return
+        try {
+            backend.openSession(
+                CHAT_SESSION_ID,
+                ReferenceSessionConfig(
+                    contextTokens = 2048,
+                    threads = 4,
+                    temperature = 0.1f,
+                    topK = 50,
+                    repeatPenalty = 1.1f,
+                ),
+            )
+            sessionReady = true
+            transferManager.setModelInUse(selectedModel.id, true)
+            localError = null
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            sessionReady = false
+            localError = error.message ?: "Não foi possível abrir a sessão local."
+        }
+    }
+
     LaunchedEffect(runtimeState, model?.id) {
         if (runtimeState is LocalInferenceState.Loaded && model != null) {
-            try {
-                backend.openSession(
-                    CHAT_SESSION_ID,
-                    ReferenceSessionConfig(
-                        contextTokens = 2048,
-                        threads = 4,
-                        temperature = 0.1f,
-                        topK = 50,
-                        repeatPenalty = 1.1f,
-                    ),
-                )
-                sessionReady = true
-                transferManager.setModelInUse(model.id, true)
-                localError = null
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                sessionReady = false
-                localError = error.message ?: "Não foi possível abrir a sessão local."
-            }
+            ensureChatSession()
         } else {
             sessionReady = false
             if (runtimeState is LocalInferenceState.Unloaded ||
@@ -298,7 +303,27 @@ fun ChatScreen(
                         ) { Text("Libertar memória") }
                     }
                 } else {
-                    Text("A abrir sessão de conversa…")
+                    Text(
+                        text = localError ?: "A abrir sessão de conversa…",
+                        color = if (localError != null) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    if (localError != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = { scope.launch { ensureChatSession() } },
+                            ) { Text("Tentar abrir sessão") }
+                            TextButton(onClick = ::unloadModel) {
+                                Text("Libertar memória")
+                            }
+                        }
+                    }
                 }
             }
             is LocalInferenceState.Error -> {
