@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "id": "liquidai.lfm3-1.7b.gguf.q4_k_m",
+      "display_name": "LFM3-1.7B · Q4_K_M",
+      "family": "LFM3",
+      "publisher": "Liquid AI",
+      "source_repo": "LiquidAI/LFM3-1.7B-GGUF",
+      "revision": "b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf",
+      "file_name": "LFM3-1.7B-Q4_K_M.gguf",
+      "format": "gguf",
+      "quantization": "Q4_K_M",
+      "download_url": "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf/LFM3-1.7B-Q4_K_M.gguf",
+      "sha256": "3793e1e6e2266919d6e015287221b41100175a98eddaba92e111aed3b05c93c4",
+      "size_label": "1.1 GB (publisher-rounded)",
+      "parameter_count": 1730000000,
+      "advertised_context": "256K tokens (publisher specification; not device-validated)",
+      "architecture": "Tri-hybrid: 13 gated short-convolution layers, 5 sliding-window attention layers, 6 global attention layers",
+      "license": "LFM Open License v1.0",
+      "license_url": "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/blob/b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf/LICENSE",
+      "model_card_url": "https://huggingface.co/LiquidAI/LFM3-1.7B"
+    }
+  ]
+}
