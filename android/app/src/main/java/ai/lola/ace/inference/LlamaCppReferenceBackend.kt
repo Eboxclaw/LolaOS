@@ -143,7 +143,6 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
 
         val producer = this
         val cancelled = AtomicBoolean(false)
-        mutableLatestMetrics.value = null
 
         val sink = object : NativeTokenSink {
             override fun onToken(token: String) {
@@ -200,6 +199,7 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             return@callbackFlow
         }
 
+        mutableLatestMetrics.value = null
         generationJob.invokeOnCompletion {
             activeGenerations.remove(sessionId, generationJob)
         }
