@@ -169,7 +169,7 @@ class ModelTransferManager(context: Context) {
                         }
                         range.totalBytes
                     }
-                    HttpURLConnection.HTTP_REQUESTED_RANGE_NOT_SATISFIABLE -> {
+                    416 -> {
                         val total = ModelDownloadPolicy.parseUnsatisfiedRangeTotal(
                             connection.getHeaderField("Content-Range"),
                         )
@@ -186,7 +186,7 @@ class ModelTransferManager(context: Context) {
                     throw IOException("O artefacto excede o limite local de 8 GiB.")
                 }
 
-                if (responseCode != HttpURLConnection.HTTP_REQUESTED_RANGE_NOT_SATISFIABLE) {
+                if (responseCode != 416) {
                     val append = responseCode == HttpURLConnection.HTTP_PARTIAL
                     val startingBytes = if (append) initialOffset else 0L
                     var downloaded = startingBytes
@@ -270,15 +270,6 @@ class ModelTransferManager(context: Context) {
                     bytesDownloaded = verified.first,
                     totalBytes = verified.first,
                     message = "Modelo verificado e instalado.",
-                ),
-            )
-        } catch (_: TransferCancelledException) {
-            update(task,
-                ModelTransferSnapshot(
-                    modelId = model.id,
-                    stage = ModelTransferStage.CANCELLED,
-                    bytesDownloaded = runCatching { partFile.length() }.getOrDefault(0L),
-                    message = "Transferência cancelada. Os dados parciais foram mantidos para retoma.",
                 ),
             )
         } catch (error: Exception) {
