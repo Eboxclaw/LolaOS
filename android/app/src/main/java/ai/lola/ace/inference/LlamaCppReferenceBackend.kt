@@ -7,6 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.cancelAndJoin
@@ -64,14 +65,17 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             unloadModelLocked()
             mutableState.value = LocalInferenceState.Loading
             try {
-                val newHandle = withContext(Dispatchers.IO) {
+                withContext(NonCancellable + Dispatchers.IO) {
                     ensureNativeLibraryLoaded()
                     nativeInit()
-                    nativeLoadModel(modelFile.canonicalPath)
+                    val newHandle = nativeLoadModel(modelFile.canonicalPath)
+                    check(newHandle != 0L) {
+                        "llama.cpp devolveu um identificador de modelo inválido."
+                    }
+                    // Commit the native handle before returning to a possibly-cancelled UI caller.
+                    modelHandle = newHandle
+                    mutableState.value = LocalInferenceState.Loaded(modelFile.name)
                 }
-                check(newHandle != 0L) { "llama.cpp devolveu um identificador de modelo inválido." }
-                modelHandle = newHandle
-                mutableState.value = LocalInferenceState.Loaded(modelFile.name)
             } catch (error: CancellationException) {
                 modelHandle = 0L
                 mutableState.value = LocalInferenceState.Unloaded
@@ -100,8 +104,8 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
         resourceMutex.withLock {
             check(modelHandle != 0L) { "Carrega primeiro um modelo GGUF." }
             if (sessionHandles.containsKey(sessionId)) return@withLock
-            val handle = withContext(Dispatchers.IO) {
-                nativeCreateSession(
+            withContext(NonCancellable + Dispatchers.IO) {
+                val handle = nativeCreateSession(
                     modelHandle,
                     config.contextTokens,
                     config.threads,
@@ -110,9 +114,10 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
                     config.repeatPenalty,
                     config.seed,
                 )
+                check(handle != 0L) { "llama.cpp não conseguiu criar a sessão." }
+                // Register ownership before returning to a possibly-cancelled UI caller.
+                sessionHandles[sessionId] = handle
             }
-            check(handle != 0L) { "llama.cpp não conseguiu criar a sessão." }
-            sessionHandles[sessionId] = handle
         }
     }
 
@@ -196,9 +201,9 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             nativeCancel(handle)
             activeGenerations[sessionId]?.cancelAndJoin()
             activeGenerations.remove(sessionId)
-            sessionHandles.remove(sessionId)
-            withContext(Dispatchers.IO) {
+            withContext(NonCancellable + Dispatchers.IO) {
                 nativeCloseSession(handle)
+                sessionHandles.remove(sessionId, handle)
             }
         }
     }
@@ -215,17 +220,17 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             nativeCancel(handle)
             activeGenerations[sessionId]?.cancelAndJoin()
             activeGenerations.remove(sessionId)
-            sessionHandles.remove(sessionId)
-            withContext(Dispatchers.IO) {
+            withContext(NonCancellable + Dispatchers.IO) {
                 nativeCloseSession(handle)
+                sessionHandles.remove(sessionId, handle)
             }
         }
 
         val handle = modelHandle
-        modelHandle = 0L
         if (handle != 0L) {
-            withContext(Dispatchers.IO) {
+            withContext(NonCancellable + Dispatchers.IO) {
                 nativeUnloadModel(handle)
+                if (modelHandle == handle) modelHandle = 0L
             }
         }
         mutableState.value = LocalInferenceState.Unloaded
