@@ -27,7 +27,7 @@ jobs:
       - name: Install Android SDK components
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" "ndk;29.0.13113456" "cmake;3.31.6"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -36,3 +36,11 @@ jobs:
 
       - name: Assemble debug APK
         run: gradle -p android :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Upload ARM64 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lola-ace-debug-arm64
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

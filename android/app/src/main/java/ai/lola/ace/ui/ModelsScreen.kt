@@ -101,7 +101,9 @@ private fun ModelCard(
     onCancel: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val status = when (snapshot.stage) {
+    val status = if (snapshot.inUse) {
+        "Carregado na memória · em utilização"
+    } else when (snapshot.stage) {
         ModelTransferStage.AVAILABLE -> "Disponível para transferência"
         ModelTransferStage.DOWNLOADING -> "A transferir"
         ModelTransferStage.VERIFYING -> "A verificar integridade"
@@ -205,8 +207,9 @@ private fun ModelCard(
 
                 ModelTransferStage.INSTALLED -> Button(
                     onClick = onDelete,
+                    enabled = !snapshot.inUse,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Apagar modelo") }
+                ) { Text(if (snapshot.inUse) "Modelo em utilização" else "Apagar modelo") }
 
                 else -> {
                     Button(
