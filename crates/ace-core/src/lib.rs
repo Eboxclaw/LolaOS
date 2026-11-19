@@ -29,8 +29,14 @@ mod tests {
         let mut usage = BudgetUsage::default();
         usage.record_transition(&budget).unwrap();
         usage.record_model_call(&budget).unwrap();
-        assert_eq!(usage.record_model_call(&budget), Err(BudgetError::ModelCallsExceeded));
-        assert_eq!(usage.record_tool_call(&budget), Err(BudgetError::ToolCallsExceeded));
+        assert_eq!(
+            usage.record_model_call(&budget),
+            Err(BudgetError::ModelCallsExceeded)
+        );
+        assert_eq!(
+            usage.record_tool_call(&budget),
+            Err(BudgetError::ToolCallsExceeded)
+        );
     }
 
     #[test]
