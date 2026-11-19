@@ -13,7 +13,7 @@ This is the first native Android application shell for LOLA ACE.
 The repository currently does not include the Gradle Wrapper JAR. Install Gradle 9.5.0 locally and build from the repository root:
 
 ```bash
-gradle -p android :app:assembleDebug
+gradle -p android :app:testDebugUnitTest :app:assembleDebug
 ```
 
 GitHub Actions provisions the pinned Gradle version and Android SDK components for the same build.
@@ -32,11 +32,16 @@ See [Android model manager implementation](../docs/ace/ANDROID_MODEL_MANAGER.md)
 
 Kotlin/Compose owns the Android UI and platform lifecycle. The model catalogue JSON is bundled as an asset from the repository's canonical `models/` directory; it is not duplicated in the Android source tree.
 
-Not implemented in this slice:
+Implemented in the model manager:
 
-- HTTP download, range/resume, progress or cancellation;
-- app-private model store, atomic installation and deletion;
-- persistent model registry or conversation database;
+- resumable HTTPS downloads into app-private staging, cancellation and progress;
+- SHA-256 verification and atomic installation;
+- atomic installed-model registry and model/partial-file deletion.
+
+Still not implemented:
+
+- guaranteed background transfer after process death (partial files resume when the app is reopened);
+- persistent conversations and chat history;
 - Rust JNI/UniFFI bridge;
 - reference or native inference backend;
 - Pixel device tests, benchmarks or thermal measurements.
