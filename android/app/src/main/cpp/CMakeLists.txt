@@ -12,7 +12,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Reference backend only: portable CPU ARM64, no GPU/NPU assumptions and no
 # architecture-specific global -march flag. ACE remains independent of llama.cpp.
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(LLAMA_BUILD_COMMON OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_COMMON ON CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -38,6 +38,7 @@ add_library(lola-reference-llama SHARED lola_reference.cpp)
 
 target_include_directories(lola-reference-llama PRIVATE
     ${llama_cpp_SOURCE_DIR}/include
+    ${llama_cpp_SOURCE_DIR}/common
     ${llama_cpp_SOURCE_DIR}/ggml/include
 )
 
@@ -49,6 +50,7 @@ target_compile_options(lola-reference-llama PRIVATE
 
 target_link_libraries(lola-reference-llama PRIVATE
     llama
+    llama-common
     android
     log
 )
