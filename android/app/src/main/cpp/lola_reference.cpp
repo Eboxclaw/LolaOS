@@ -2,6 +2,9 @@
 #include <android/log.h>
 
 #include "llama.h"
+#include "chat.h"
+#include "common.h"
+#include "sampling.h"
 
 #include <algorithm>
 #include <atomic>
@@ -24,13 +27,14 @@ std::atomic<bool> g_backend_initialized{false};
 
 struct ModelHandle {
     llama_model *model = nullptr;
+    common_chat_templates_ptr chat_templates;
 };
 
 struct SessionHandle {
     ModelHandle *owner = nullptr;
     llama_context *context = nullptr;
     llama_batch_ext *batch = nullptr;
-    llama_sampler *sampler = nullptr;
+    common_sampler *sampler = nullptr;
     const llama_vocab *vocab = nullptr;
     uint32_t context_tokens = DEFAULT_CONTEXT_TOKENS;
     std::atomic<bool> cancelled{false};
@@ -329,8 +333,24 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeLoadModel(
 
     auto *handle = new ModelHandle();
     handle->model = model;
+    try {
+        handle->chat_templates = common_chat_templates_init(model, "");
+    } catch (const std::exception &error) {
+        llama_model_free(model);
+        delete handle;
+        throw_java(env, "java/lang/IllegalStateException",
+                   std::string("Could not initialize the GGUF chat template: ") + error.what());
+        return 0;
+    }
+    if (!handle->chat_templates) {
+        llama_model_free(model);
+        delete handle;
+        throw_java(env, "java/lang/IllegalStateException",
+                   "llama.cpp could not initialize a chat template for this GGUF");
+        return 0;
+    }
     __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                        "Model loaded into the CPU reference backend");
+                        "Model and chat template loaded into the CPU reference backend");
     return to_handle(handle);
 }
 
@@ -385,23 +405,20 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeCreateSession(
 
     session->batch = llama_batch_ext_init(session->context);
     session->vocab = llama_model_get_vocab(model->model);
-    auto sampler_params = llama_sampler_chain_default_params();
-    session->sampler = llama_sampler_chain_init(sampler_params);
-    if (session->sampler != nullptr) {
-        llama_sampler_chain_add(session->sampler, llama_sampler_init_top_k(top_k));
-        llama_sampler_chain_add(
-            session->sampler,
-            llama_sampler_init_penalties(
-                llama_vocab_n_tokens(session->vocab), 64, repeat_penalty, 0.0f, 0.0f));
-        llama_sampler_chain_add(session->sampler, llama_sampler_init_temp(temperature));
-        llama_sampler_chain_add(
-            session->sampler,
-            llama_sampler_init_dist(static_cast<uint32_t>(seed)));
-    }
+
+    common_params_sampling sampler_params;
+    sampler_params.seed = static_cast<uint32_t>(seed);
+    sampler_params.top_k = top_k;
+    sampler_params.temp = temperature;
+    sampler_params.penalty_last_n = 64;
+    sampler_params.penalty_repeat = repeat_penalty;
+    sampler_params.penalty_freq = 0.0f;
+    sampler_params.penalty_present = 0.0f;
+    session->sampler = common_sampler_init(model->model, sampler_params);
 
     if (session->batch == nullptr || session->vocab == nullptr ||
         session->sampler == nullptr) {
-        if (session->sampler != nullptr) llama_sampler_free(session->sampler);
+        if (session->sampler != nullptr) common_sampler_free(session->sampler);
         if (session->batch != nullptr) llama_batch_ext_free(session->batch);
         llama_free(session->context);
         delete session;
@@ -476,40 +493,48 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
         env->DeleteLocalRef(content);
     }
 
-    const char *chat_template = llama_model_chat_template(session->owner->model, nullptr);
-    if (chat_template == nullptr) {
-        throw_java(env, "java/lang/IllegalStateException",
-                   "GGUF model does not contain a supported chat template");
-        return -1;
-    }
-
-    std::vector<llama_chat_message> chat;
+    std::vector<common_chat_msg> chat;
     chat.reserve(role_strings.size());
     for (size_t i = 0; i < role_strings.size(); ++i) {
-        chat.push_back({role_strings[i].c_str(), content_strings[i].c_str()});
+        common_chat_msg message;
+        message.role = role_strings[i];
+        message.content = content_strings[i];
+        chat.push_back(std::move(message));
     }
 
-    const int32_t prompt_size = llama_chat_apply_template(
-        chat_template, chat.data(), chat.size(), true, nullptr, 0);
-    if (prompt_size <= 0) {
+    std::string prompt_text;
+    try {
+        common_chat_templates_inputs template_inputs;
+        template_inputs.messages = std::move(chat);
+        template_inputs.use_jinja = true;
+        template_inputs.add_generation_prompt = true;
+        template_inputs.add_bos = llama_vocab_get_add_bos(session->vocab);
+        template_inputs.add_eos = llama_vocab_get_add_eos(session->vocab);
+        const common_chat_params formatted = common_chat_templates_apply(
+            session->owner->chat_templates.get(), template_inputs);
+        prompt_text = formatted.prompt.str();
+    } catch (const std::exception &error) {
         throw_java(env, "java/lang/IllegalStateException",
-                   "llama.cpp could not apply the model chat template");
+                   std::string("Could not render the LFM3 chat template: ") + error.what());
         return -1;
     }
 
-    std::vector<char> prompt_buffer(static_cast<size_t>(prompt_size) + 1);
-    const int32_t rendered_size = llama_chat_apply_template(
-        chat_template, chat.data(), chat.size(), true,
-        prompt_buffer.data(), static_cast<int32_t>(prompt_buffer.size()));
-    if (rendered_size <= 0 || rendered_size > prompt_size) {
-        throw_java(env, "java/lang/IllegalStateException",
-                   "llama.cpp returned an invalid formatted prompt");
+    if (prompt_text.empty() ||
+        prompt_text.size() > static_cast<size_t>(INT32_MAX)) {
+        throw_java(env, "java/lang/IllegalArgumentException",
+                   "Rendered conversation is empty or too large");
         return -1;
     }
 
+    const int32_t prompt_size = static_cast<int32_t>(prompt_text.size());
     const int32_t token_count_result = llama_tokenize(
-        session->vocab, prompt_buffer.data(), rendered_size,
+        session->vocab, prompt_text.data(), prompt_size,
         nullptr, 0, false, true);
+    if (token_count_result == INT32_MIN) {
+        throw_java(env, "java/lang/IllegalArgumentException",
+                   "Conversation exceeds the tokenizer's supported size");
+        return -1;
+    }
     const int32_t prompt_tokens_count = token_count_result < 0
         ? -token_count_result : token_count_result;
     if (prompt_tokens_count <= 0 ||
@@ -522,7 +547,7 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
 
     std::vector<llama_token> prompt_tokens(static_cast<size_t>(prompt_tokens_count));
     const int32_t tokenized = llama_tokenize(
-        session->vocab, prompt_buffer.data(), rendered_size,
+        session->vocab, prompt_text.data(), prompt_size,
         prompt_tokens.data(), prompt_tokens_count, false, true);
     if (tokenized != prompt_tokens_count) {
         throw_java(env, "java/lang/IllegalStateException",
@@ -530,8 +555,9 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
         return -1;
     }
 
+    if (session->cancelled.load()) return 1;
     llama_memory_clear(llama_get_memory(session->context), false);
-    llama_sampler_reset(session->sampler);
+    common_sampler_reset(session->sampler);
 
     if (!decode_prompt(session, prompt_tokens)) {
         if (session->cancelled.load()) return 1;
@@ -551,7 +577,13 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
             return 1;
         }
 
-        const llama_token token = llama_sampler_sample(session->sampler, session->context, -1);
+        const llama_token token = common_sampler_sample(session->sampler, session->context, -1);
+        if (token == LLAMA_TOKEN_NULL) {
+            throw_java(env, "java/lang/IllegalStateException",
+                       "llama.cpp did not select a valid token");
+            return -1;
+        }
+        common_sampler_accept(session->sampler, token, true);
         if (llama_vocab_is_eog(session->vocab, token)) {
             break;
         }
@@ -564,6 +596,10 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
 
         ++generated;
         if (generated < max_output_tokens) {
+            if (session->cancelled.load()) {
+                emit_utf8(env, sink, on_token, pending_utf8, true);
+                return 1;
+            }
             if (!decode_next_token(session, token, position)) {
                 throw_java(env, "java/lang/IllegalStateException",
                            "llama.cpp failed while decoding the next token");
@@ -604,7 +640,7 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeCloseSession(
     if (session == nullptr) return;
 
     session->cancelled.store(true);
-    if (session->sampler != nullptr) llama_sampler_free(session->sampler);
+    if (session->sampler != nullptr) common_sampler_free(session->sampler);
     if (session->batch != nullptr) llama_batch_ext_free(session->batch);
     if (session->context != nullptr) llama_free(session->context);
     delete session;
@@ -615,6 +651,7 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeUnloadModel(
     JNIEnv * /*env*/, jobject /*self*/, jlong model_handle) {
     auto *model = from_handle<ModelHandle>(model_handle);
     if (model == nullptr) return;
+    model->chat_templates.reset();
     if (model->model != nullptr) llama_model_free(model->model);
     delete model;
 }
