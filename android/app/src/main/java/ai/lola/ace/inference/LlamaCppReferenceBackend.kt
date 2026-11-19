@@ -39,8 +39,17 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
     @Volatile
     private var modelHandle: Long = 0L
 
-    init {
-        System.loadLibrary("lola-reference-llama")
+    @Volatile
+    private var nativeLibraryLoaded = false
+
+    private fun ensureNativeLibraryLoaded() {
+        if (nativeLibraryLoaded) return
+        synchronized(this) {
+            if (!nativeLibraryLoaded) {
+                System.loadLibrary("lola-reference-llama")
+                nativeLibraryLoaded = true
+            }
+        }
     }
 
     override suspend fun loadModel(modelFile: File) {
@@ -56,12 +65,23 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             mutableState.value = LocalInferenceState.Loading
             try {
                 val newHandle = withContext(Dispatchers.IO) {
+                    ensureNativeLibraryLoaded()
                     nativeInit()
                     nativeLoadModel(modelFile.canonicalPath)
                 }
                 check(newHandle != 0L) { "llama.cpp devolveu um identificador de modelo inválido." }
                 modelHandle = newHandle
                 mutableState.value = LocalInferenceState.Loaded(modelFile.name)
+            } catch (error: CancellationException) {
+                modelHandle = 0L
+                mutableState.value = LocalInferenceState.Unloaded
+                throw error
+            } catch (error: LinkageError) {
+                modelHandle = 0L
+                mutableState.value = LocalInferenceState.Error(
+                    error.message ?: "A biblioteca nativa não pôde ser carregada.",
+                )
+                throw error
             } catch (error: Exception) {
                 modelHandle = 0L
                 mutableState.value = LocalInferenceState.Error(
@@ -112,7 +132,6 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
 
         val producer = this
         val cancelled = AtomicBoolean(false)
-        nativeResetCancellation(handle)
 
         val sink = object : NativeTokenSink {
             override fun onToken(token: String) {
@@ -154,6 +173,9 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
         generationJob.invokeOnCompletion {
             activeGenerations.remove(sessionId, generationJob)
         }
+        // Reset only after this generation owns the session; a rejected second request
+        // must never clear a cancellation already sent to the active generation.
+        nativeResetCancellation(handle)
         generationJob.start()
 
         awaitClose {
@@ -161,10 +183,11 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             nativeCancel(handle)
             generationJob.cancel()
         }
-    }.buffer(Channel.BUFFERED)
+    }.buffer(Channel.UNLIMITED)
 
     override fun cancelGeneration(sessionId: String) {
         sessionHandles[sessionId]?.let(::nativeCancel)
+        activeGenerations[sessionId]?.cancel()
     }
 
     override suspend fun closeSession(sessionId: String) {
