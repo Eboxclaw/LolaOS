@@ -243,7 +243,7 @@ fun ChatScreen(
                 model?.let { transferManager.setModelInUse(it.id, false) }
                 sessionReady = false
                 generating = false
-                chatLines.clear()
+                // Keep the local transcript visible when the model is unloaded.
                 localError = null
             } catch (error: CancellationException) {
                 throw error
@@ -318,6 +318,12 @@ fun ChatScreen(
                     }.onFailure { error ->
                         localError = error.message ?: "Não foi possível guardar a resposta parcial."
                     }
+                } else if (response.isBlank()) {
+                    // Do not leave a permanent typing placeholder when the backend returns no text.
+                    val last = chatLines.lastOrNull()
+                    if (last?.role == "assistant" && last.text.isBlank()) {
+                        chatLines.removeAt(chatLines.lastIndex)
+                    }
                 }
                 runCatching { refreshConversations() }
                 generating = false
@@ -342,13 +348,13 @@ fun ChatScreen(
         ) {
             TextButton(
                 onClick = ::createNewConversation,
-                enabled = !generating && !historyLoading,
+                enabled = !generating && !historyLoading && !conversationLoading,
             ) { Text("Nova conversa") }
             Spacer(modifier = Modifier.weight(1f))
             Column {
                 TextButton(
                     onClick = { showHistory = true },
-                    enabled = conversations.isNotEmpty() && !historyLoading && !generating,
+                    enabled = conversations.isNotEmpty() && !historyLoading && !generating && !conversationLoading,
                 ) { Text("Histórico (${conversations.size})") }
                 DropdownMenu(
                     expanded = showHistory,
