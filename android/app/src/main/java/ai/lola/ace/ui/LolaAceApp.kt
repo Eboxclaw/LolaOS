@@ -74,6 +74,8 @@ fun LolaAceApp() {
                 AceDestination.CHAT -> ChatScreen(
                     model = catalogResult.getOrNull()?.firstOrNull(),
                     catalogueAvailable = catalogResult.isSuccess,
+                    transferManager = transferManager,
+                    onOpenModels = { destination = AceDestination.MODELS.name },
                 )
                 AceDestination.MODELS -> ModelsScreen(
                     models = catalogResult.getOrNull().orEmpty(),
