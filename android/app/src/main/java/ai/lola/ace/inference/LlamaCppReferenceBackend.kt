@@ -79,9 +79,7 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
         require(sessionId.isNotBlank()) { "O identificador da sessão não pode estar vazio." }
         resourceMutex.withLock {
             check(modelHandle != 0L) { "Carrega primeiro um modelo GGUF." }
-            check(!sessionHandles.containsKey(sessionId)) {
-                "A sessão $sessionId já está aberta."
-            }
+            if (sessionHandles.containsKey(sessionId)) return@withLock
             val handle = withContext(Dispatchers.IO) {
                 nativeCreateSession(
                     modelHandle,
