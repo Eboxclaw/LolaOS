@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -16,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,16 +36,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ai.lola.ace.data.ChatRepository
 import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelTransferManager
+import ai.lola.ace.data.StoredConversation
 import ai.lola.ace.inference.InferenceChatMessage
 import ai.lola.ace.inference.LocalInferenceBackend
 import ai.lola.ace.inference.LocalInferenceState
 import ai.lola.ace.inference.ReferenceSessionConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val CHAT_SESSION_ID = "primary-chat"
 private const val MAX_OUTPUT_TOKENS = 256
@@ -60,6 +69,8 @@ fun ChatScreen(
     backend: LocalInferenceBackend,
     onOpenModels: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { ChatRepository(context) }
     val runtimeState by backend.state.collectAsState()
     val scope = rememberCoroutineScope()
     val chatLines = remember { mutableStateListOf<ChatLine>() }
@@ -70,6 +81,14 @@ fun ChatScreen(
     var sessionReady by remember { mutableStateOf(false) }
     var generating by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+    var conversations by remember { mutableStateOf<List<StoredConversation>>(emptyList()) }
+    var currentConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var showHistory by remember { mutableStateOf(false) }
+    var historyLoading by remember { mutableStateOf(true) }
+
+    DisposableEffect(repository) {
+        onDispose { repository.close() }
+    }
 
     DisposableEffect(transferManager) {
         val subscription = transferManager.subscribe { transferVersion++ }
@@ -78,6 +97,45 @@ fun ChatScreen(
 
     val installedFile = remember(model, transferVersion) {
         model?.let(transferManager::installedModelFile)
+    }
+
+    suspend fun refreshConversations() {
+        conversations = withContext(Dispatchers.IO) {
+            repository.listConversations()
+        }
+    }
+
+    LaunchedEffect(repository) {
+        historyLoading = true
+        try {
+            val initialConversationId = withContext(Dispatchers.IO) {
+                repository.latestConversationId() ?: repository.createConversation()
+            }
+            refreshConversations()
+            currentConversationId = initialConversationId
+        } catch (error: Exception) {
+            localError = error.message ?: "Não foi possível abrir o histórico local."
+        } finally {
+            historyLoading = false
+        }
+    }
+
+    LaunchedEffect(currentConversationId) {
+        val conversationId = currentConversationId ?: return@LaunchedEffect
+        try {
+            val messages = withContext(Dispatchers.IO) {
+                repository.loadMessages(conversationId)
+            }
+            chatLines.clear()
+            chatLines.addAll(
+                messages
+                    .filter { it.role == "user" || it.role == "assistant" }
+                    .map { ChatLine(role = it.role, text = it.content) },
+            )
+            localError = null
+        } catch (error: Exception) {
+            localError = error.message ?: "Não foi possível carregar esta conversa."
+        }
     }
 
     suspend fun ensureChatSession() {
@@ -123,6 +181,33 @@ fun ChatScreen(
         }
     }
 
+    fun createNewConversation() {
+        if (generating) return
+        scope.launch {
+            try {
+                val newId = withContext(Dispatchers.IO) {
+                    repository.createConversation()
+                }
+                currentConversationId = newId
+                refreshConversations()
+                showHistory = false
+                localError = null
+            } catch (error: Exception) {
+                localError = error.message ?: "Não foi possível criar uma conversa."
+            }
+        }
+    }
+
+    fun selectConversation(conversationId: Long) {
+        if (generating || currentConversationId == conversationId) {
+            showHistory = false
+            return
+        }
+        currentConversationId = conversationId
+        showHistory = false
+        localError = null
+    }
+
     fun loadModel() {
         val file = installedFile ?: return
         scope.launch {
@@ -132,7 +217,6 @@ fun ChatScreen(
             try {
                 backend.loadModel(file)
             } catch (error: CancellationException) {
-                // A native load may finish and commit its handle even when this screen leaves.
                 throw error
             } catch (error: LinkageError) {
                 model?.let { transferManager.setModelInUse(it.id, false) }
@@ -163,7 +247,8 @@ fun ChatScreen(
 
     fun sendMessage() {
         val text = input.trim()
-        if (text.isEmpty() || !sessionReady || generating) return
+        val conversationId = currentConversationId
+        if (text.isEmpty() || !sessionReady || generating || conversationId == null) return
 
         val history = buildList {
             add(
@@ -185,26 +270,56 @@ fun ChatScreen(
         localError = null
 
         scope.launch {
+            val response = StringBuilder()
+            var assistantPersisted = false
             try {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    repository.appendMessage(conversationId, "user", text)
+                }
+                refreshConversations()
+
                 backend.generate(
                     sessionId = CHAT_SESSION_ID,
                     messages = history,
                     maxOutputTokens = MAX_OUTPUT_TOKENS,
                 ).collect { delta ->
+                    response.append(delta)
                     val last = chatLines.lastIndex
                     if (last >= 0 && chatLines[last].role == "assistant") {
-                        chatLines[last] = chatLines[last].copy(text = chatLines[last].text + delta)
+                        chatLines[last] = chatLines[last].copy(text = response.toString())
                     }
+                }
+
+                if (response.isNotBlank()) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        repository.appendMessage(conversationId, "assistant", response.toString())
+                    }
+                    assistantPersisted = true
                 }
             } catch (_: CancellationException) {
                 // A user cancellation is a normal end to local generation.
             } catch (error: Exception) {
                 localError = error.message ?: "Erro durante a geração local."
             } finally {
+                if (!assistantPersisted && response.isNotBlank()) {
+                    runCatching {
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            repository.appendMessage(conversationId, "assistant", response.toString())
+                        }
+                    }.onFailure { error ->
+                        localError = error.message ?: "Não foi possível guardar a resposta parcial."
+                    }
+                }
+                runCatching { refreshConversations() }
                 generating = false
             }
         }
     }
+
+    val currentConversationTitle = conversations
+        .firstOrNull { it.id == currentConversationId }
+        ?.title
+        ?: ChatRepository.DEFAULT_CONVERSATION_TITLE
 
     Column(
         modifier = Modifier
@@ -212,6 +327,39 @@ fun ChatScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(
+                onClick = ::createNewConversation,
+                enabled = !generating && !historyLoading,
+            ) { Text("Nova conversa") }
+            Spacer(modifier = Modifier.weight(1f))
+            Column {
+                TextButton(
+                    onClick = { showHistory = true },
+                    enabled = conversations.isNotEmpty() && !historyLoading && !generating,
+                ) { Text("Histórico (${conversations.size})") }
+                DropdownMenu(
+                    expanded = showHistory,
+                    onDismissRequest = { showHistory = false },
+                ) {
+                    conversations.forEach { conversation ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = conversation.title,
+                                    maxLines = 1,
+                                )
+                            },
+                            onClick = { selectConversation(conversation.id) },
+                        )
+                    }
+                }
+            }
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(
                 text = "CONVERSA LOCAL",
@@ -220,9 +368,14 @@ fun ChatScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = model?.displayName ?: "Nenhum modelo no catálogo",
+                text = currentConversationTitle,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = model?.displayName ?: "Nenhum modelo no catálogo",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = when (runtimeState) {
@@ -385,19 +538,19 @@ fun ChatScreen(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    enabled = sessionReady && !generating,
+                    enabled = sessionReady && !generating && currentConversationId != null,
                     placeholder = { Text("Escreve uma mensagem…") },
                     maxLines = 4,
                 )
                 Button(
                     onClick = ::sendMessage,
-                    enabled = sessionReady && !generating && input.isNotBlank(),
+                    enabled = sessionReady && !generating && input.isNotBlank() && currentConversationId != null,
                 ) {
                     Text("Enviar")
                 }
             }
             Text(
-                text = "Motor de referência llama.cpp · CPU · contexto 2K · máximo 256 tokens por resposta · conversa não persistida",
+                text = "Motor de referência llama.cpp · CPU · contexto 2K · máximo 256 tokens por resposta · histórico guardado localmente",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )
