@@ -15,15 +15,18 @@
 - One llama context and sampler per inference session; full supplied conversation is evaluated per turn in this initial baseline.
 - Kotlin streaming adapter, host-provided output-token budget, cancellation and Unicode-safe JNI text conversion.
 - Chat UI connected to real local backend state and streamed token output; no mock responses.
+- Private SQLite conversation store with multiple conversations, automatic titles, ordered message history and partial assistant-response persistence on normal cancellation.
 - Android unit tests for model-download policy, HTTP range parsing and inference configuration.
 - Android CI builds the ARM64 native library, runs JVM unit tests and assembles a debug APK; Rust CI remains separate.
 
 ## Not yet validated
 
 - No physical Pixel 8 Pro execution has yet proven successful LFM3 generation.
+- Conversation history is persisted locally but not encrypted by an app-specific encryption layer; there is no cloud sync or conversation deletion UI yet.
+- The reference chat context is capped at 2,048 tokens. Long conversations may need a new conversation; automatic history compaction is not implemented.
 - No golden-output suite, load/unload stress run, cancellation-under-load device test or low-memory recovery test.
 - No TTFT, prefill/decode speed, PSS, temperature, battery or thermal measurements.
-- No persistent conversation history, incremental KV-cache reuse, WorkManager/foreground download service or Kotlin↔Rust bridge.
+- No physical Pixel 8 Pro execution, incremental KV-cache reuse, WorkManager/foreground download service or Kotlin↔Rust bridge.
 - No LOLA Native Engine yet; llama.cpp remains a replaceable reference backend only.
 
 A successful native build proves that the Android library compiles, not that a particular GGUF model can be loaded and answer prompts on the target device.
