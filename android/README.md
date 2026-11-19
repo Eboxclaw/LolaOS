@@ -24,6 +24,10 @@ GitHub Actions provisions the pinned Gradle version and Android SDK components f
 - **Modelos:** reads the same `models/catalog.v1.json` asset used by the Rust `ace-models` crate. It displays the pinned LFM3-1.7B GGUF Q4_K_M metadata and clearly marks it as catalogued, not installed.
 - **Diagnóstico:** reports actual integration status; backend, resident model and runtime measurements are currently unavailable.
 
+## Model manager
+
+See [Android model manager implementation](../docs/ace/ANDROID_MODEL_MANAGER.md) for transfer, verification, storage and recovery behaviour.
+
 ## Architecture boundary
 
 Kotlin/Compose owns the Android UI and platform lifecycle. The model catalogue JSON is bundled as an asset from the repository's canonical `models/` directory; it is not duplicated in the Android source tree.
