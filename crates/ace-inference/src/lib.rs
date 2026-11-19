@@ -45,7 +45,12 @@ pub struct GenerationOptions {
 
 impl Default for GenerationOptions {
     fn default() -> Self {
-        Self { max_output_tokens: 256, temperature: 0.7, top_p: 0.9, seed: None }
+        Self {
+            max_output_tokens: 256,
+            temperature: 0.7,
+            top_p: 0.9,
+            seed: None,
+        }
     }
 }
 
@@ -97,7 +102,11 @@ pub struct InferenceSession {
 
 impl InferenceSession {
     pub fn new<T: Any + Send>(id: SessionId, model_id: ModelId, state: T) -> Self {
-        Self { id, model_id, state: Box::new(state) }
+        Self {
+            id,
+            model_id,
+            state: Box::new(state),
+        }
     }
 
     pub fn state_mut<T: Any + Send>(&mut self) -> Option<&mut T> {
@@ -110,8 +119,11 @@ pub trait InferenceBackend: Send {
     fn capabilities(&self, model: &ModelDescriptor) -> BackendCapabilities;
     fn load_model(&mut self, model: &ModelDescriptor) -> Result<(), InferenceError>;
     fn unload_model(&mut self, model_id: &ModelId) -> Result<(), InferenceError>;
-    fn create_session(&self, model: &ModelDescriptor, session_id: SessionId)
-        -> Result<InferenceSession, InferenceError>;
+    fn create_session(
+        &self,
+        model: &ModelDescriptor,
+        session_id: SessionId,
+    ) -> Result<InferenceSession, InferenceError>;
 
     fn generate(
         &self,
@@ -128,7 +140,9 @@ mod tests {
     use super::*;
 
     #[derive(Debug, Default)]
-    struct FakeState { counter: u32 }
+    struct FakeState {
+        counter: u32,
+    }
 
     #[test]
     fn inference_sessions_own_independent_mutable_state() {
