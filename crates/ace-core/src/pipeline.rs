@@ -49,12 +49,24 @@ pub struct PipelineRun {
 
 impl PipelineRun {
     pub fn new(id: RunId, kind: PipelineKind) -> Self {
-        Self { id, kind, state: RunState::Created }
+        Self {
+            id,
+            kind,
+            state: RunState::Created,
+        }
     }
 
-    pub fn id(&self) -> RunId { self.id }
-    pub fn kind(&self) -> PipelineKind { self.kind }
-    pub fn state(&self) -> RunState { self.state }
+    pub fn id(&self) -> RunId {
+        self.id
+    }
+
+    pub fn kind(&self) -> PipelineKind {
+        self.kind
+    }
+
+    pub fn state(&self) -> RunState {
+        self.state
+    }
 
     pub fn start(&mut self) -> Result<(), TransitionError> {
         self.transition(RunState::Running)
@@ -82,7 +94,10 @@ impl PipelineRun {
                 | (RunState::Running, RunState::Cancelled)
         );
         if !allowed {
-            return Err(TransitionError::InvalidTransition { from: self.state, to });
+            return Err(TransitionError::InvalidTransition {
+                from: self.state,
+                to,
+            });
         }
         self.state = to;
         Ok(())
@@ -93,7 +108,9 @@ impl PipelineRun {
 pub struct CancellationToken(Arc<AtomicBool>);
 
 impl CancellationToken {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn cancel(&self) {
         self.0.store(true, Ordering::Release);
