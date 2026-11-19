@@ -126,20 +126,19 @@ class ModelTransferManager(context: Context) {
 
         publish(ModelTransferSnapshot(model.id, ModelTransferStage.DELETING))
         executor.execute {
-            try {
+            val finalSnapshot = try {
                 store.deleteInstalled(model)
-                publish(ModelTransferSnapshot(model.id, ModelTransferStage.AVAILABLE))
+                ModelTransferSnapshot(model.id, ModelTransferStage.AVAILABLE)
             } catch (error: Exception) {
-                publish(
-                    ModelTransferSnapshot(
-                        modelId = model.id,
-                        stage = ModelTransferStage.FAILED,
-                        message = error.message ?: "Não foi possível remover o modelo",
-                    ),
+                ModelTransferSnapshot(
+                    modelId = model.id,
+                    stage = ModelTransferStage.FAILED,
+                    message = error.message ?: "Não foi possível remover o modelo",
                 )
             } finally {
                 deleting.remove(model.id)
             }
+            publish(finalSnapshot)
         }
         return true
     }
@@ -205,6 +204,16 @@ class ModelTransferManager(context: Context) {
 
                 if (expectedTotal != null && expectedTotal > MAX_ARTIFACT_BYTES) {
                     throw IOException("O artefacto excede o limite local de 8 GiB.")
+                }
+                if (expectedTotal != null && responseCode != 416) {
+                    val bytesStillRequired = if (responseCode == HttpURLConnection.HTTP_PARTIAL) {
+                        expectedTotal - initialOffset
+                    } else {
+                        expectedTotal
+                    }
+                    if (bytesStillRequired > (freeBytes - DISK_SAFETY_MARGIN_BYTES).coerceAtLeast(0L)) {
+                        throw IOException("Não há espaço livre suficiente para concluir a transferência.")
+                    }
                 }
 
                 if (responseCode != 416) {
@@ -437,6 +446,7 @@ class ModelTransferManager(context: Context) {
         private const val MAX_ARTIFACT_BYTES = 8L * 1024L * 1024L * 1024L
         private const val MINIMUM_FREE_BYTES = 1536L * 1024L * 1024L
         private const val MINIMUM_RESUME_FREE_BYTES = 256L * 1024L * 1024L
+        private const val DISK_SAFETY_MARGIN_BYTES = 256L * 1024L * 1024L
         private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
     }
 }
