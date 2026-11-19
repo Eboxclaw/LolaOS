@@ -52,11 +52,7 @@ impl BudgetUsage {
         )
     }
 
-    pub fn record_input_tokens(
-        &mut self,
-        count: u64,
-        budget: &Budget,
-    ) -> Result<(), BudgetError> {
+    pub fn record_input_tokens(&mut self, count: u64, budget: &Budget) -> Result<(), BudgetError> {
         let next = self.input_tokens.saturating_add(count);
         if next > budget.max_input_tokens {
             return Err(BudgetError::InputTokensExceeded);
@@ -65,11 +61,7 @@ impl BudgetUsage {
         Ok(())
     }
 
-    pub fn record_output_tokens(
-        &mut self,
-        count: u64,
-        budget: &Budget,
-    ) -> Result<(), BudgetError> {
+    pub fn record_output_tokens(&mut self, count: u64, budget: &Budget) -> Result<(), BudgetError> {
         let next = self.output_tokens.saturating_add(count);
         if next > budget.max_output_tokens {
             return Err(BudgetError::OutputTokensExceeded);
@@ -78,11 +70,7 @@ impl BudgetUsage {
         Ok(())
     }
 
-    fn increment(
-        value: &mut u32,
-        limit: u32,
-        error: BudgetError,
-    ) -> Result<(), BudgetError> {
+    fn increment(value: &mut u32, limit: u32, error: BudgetError) -> Result<(), BudgetError> {
         let next = value.saturating_add(1);
         if next > limit {
             return Err(error);
