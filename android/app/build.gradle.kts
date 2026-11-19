@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "ai.lola.ace"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "ai.lola.ace"
