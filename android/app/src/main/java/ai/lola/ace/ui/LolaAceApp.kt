@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelCatalogRepository
 import ai.lola.ace.data.ModelTransferManager
 import ai.lola.ace.data.ModelTransferManagerProvider
+import ai.lola.ace.inference.LocalInferenceBackendProvider
 
 private enum class AceDestination(val label: String, val symbol: String) {
     CHAT("Conversas", "◉"),
@@ -35,6 +37,8 @@ private enum class AceDestination(val label: String, val symbol: String) {
 fun LolaAceApp() {
     val context = LocalContext.current
     val transferManager = remember(context) { ModelTransferManagerProvider.get(context) }
+    val inferenceBackend = remember { LocalInferenceBackendProvider.get() }
+    val inferenceState by inferenceBackend.state.collectAsState()
     val catalogResult = remember(context) {
         runCatching { ModelCatalogRepository(context).loadBundled() }
     }
@@ -75,6 +79,7 @@ fun LolaAceApp() {
                     model = catalogResult.getOrNull()?.firstOrNull(),
                     catalogueAvailable = catalogResult.isSuccess,
                     transferManager = transferManager,
+                    backend = inferenceBackend,
                     onOpenModels = { destination = AceDestination.MODELS.name },
                 )
                 AceDestination.MODELS -> ModelsScreen(
@@ -85,6 +90,7 @@ fun LolaAceApp() {
                 AceDestination.DIAGNOSTICS -> DiagnosticsScreen(
                     modelCount = catalogResult.getOrNull()?.size ?: 0,
                     catalogueAvailable = catalogResult.isSuccess,
+                    inferenceState = inferenceState,
                 )
             }
         }
