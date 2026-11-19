@@ -28,6 +28,17 @@ The first vertical slice is **LFM3-1.7B text streaming** on a Google Pixel 8 Pro
 7. GGUF and ONNX are accepted interchange/import paths; no proprietary weight format is required of model authors.
 8. The native engine must earn adoption through correctness and same-device benchmarks against reference runtimes.
 
-## Current status
+## Current implementation status
 
-Architecture baseline only. Implementation readiness must be established by build, device tests, golden outputs and measured performance. A document or scaffold is not evidence that a runtime path works.
+Implemented in Rust:
+- `ace-core`: initial run lifecycle, cancellation and host-owned usage-budget primitives.
+- `ace-inference`: backend-neutral model/session/generation contract and ordered streaming chunk types.
+- `ace-models`: schema-versioned catalogue validation, immutable artifact revision checks, streaming SHA-256 verification and lifecycle state transitions.
+
+Not implemented yet:
+- Android/Kotlin application, model download/resume and app-private model store;
+- persistent model registry and conversation database;
+- reference inference backend, LOLA Native Engine and Android FFI bridge;
+- Pixel device validation, golden inference outputs and performance/thermal measurements.
+
+Implementation readiness must be established by passing CI, device tests, golden outputs and measured performance. A document, type contract or state machine is not evidence that a model can already be downloaded or run.
