@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateMapOf
@@ -207,18 +208,34 @@ private fun ModelCard(
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Apagar modelo") }
 
-                else -> Button(
-                    onClick = onDownload,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        when (snapshot.stage) {
-                            ModelTransferStage.PAUSED -> "Retomar transferência"
-                            ModelTransferStage.CANCELLED -> "Retomar transferência"
-                            ModelTransferStage.FAILED -> "Tentar novamente"
-                            else -> "Descarregar modelo"
-                        },
-                    )
+                else -> {
+                    Button(
+                        onClick = onDownload,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            when (snapshot.stage) {
+                                ModelTransferStage.PAUSED -> "Retomar transferência"
+                                ModelTransferStage.CANCELLED -> "Retomar transferência"
+                                ModelTransferStage.FAILED -> "Tentar novamente"
+                                else -> "Descarregar modelo"
+                            },
+                        )
+                    }
+                    if (snapshot.bytesDownloaded > 0L &&
+                        snapshot.stage in setOf(
+                            ModelTransferStage.PAUSED,
+                            ModelTransferStage.CANCELLED,
+                            ModelTransferStage.FAILED,
+                        )
+                    ) {
+                        TextButton(
+                            onClick = onDelete,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Apagar transferência parcial")
+                        }
+                    }
                 }
             }
         }
