@@ -6,8 +6,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileNotFoundException
-import java.io.FileOutputStream
-import java.util.concurrent.TimeUnit
 
 data class InstalledModelRecord(
     val modelId: String,
@@ -109,21 +107,38 @@ class ModelStore(context: Context) {
 
     @Synchronized
     fun deleteInstalled(model: ModelArtifactSummary): Boolean {
-        val record = readRegistry()[model.id] ?: return false
-        if (record.revision != model.revision) return false
+        val records = readRegistry()
+        val record = records[model.id]
+        var removedAnything = false
 
-        val versionDirectory = destinationFile(model).parentFile
-            ?: return false
-        deleteManagedPath(versionDirectory)
-        val modelDirectory = versionDirectory.parentFile
-        if (modelDirectory != null && modelDirectory.isDirectory && modelDirectory.list().isNullOrEmpty()) {
-            deleteManagedPath(modelDirectory)
+        if (record == null || record.revision == model.revision) {
+            val versionDirectory = destinationFile(model).parentFile
+                ?: throw IllegalStateException("Model destination has no parent directory")
+            if (versionDirectory.exists()) {
+                deleteManagedPath(versionDirectory)
+                removedAnything = true
+            }
+
+            val modelDirectory = versionDirectory.parentFile
+            if (modelDirectory != null &&
+                modelDirectory.isDirectory &&
+                modelDirectory.list().isNullOrEmpty()
+            ) {
+                deleteManagedPath(modelDirectory)
+            }
+
+            if (record?.revision == model.revision) {
+                records.remove(model.id)
+                writeRegistry(records)
+            }
         }
 
-        val records = readRegistry()
-        records.remove(model.id)
-        writeRegistry(records)
-        return true
+        val partial = partialFile(model)
+        if (partial.exists()) {
+            deleteManagedPath(partial)
+            removedAnything = true
+        }
+        return removedAnything
     }
 
     private fun readRegistry(): MutableMap<String, InstalledModelRecord> {
