@@ -148,7 +148,7 @@ mod tests {
     fn inference_sessions_own_independent_mutable_state() {
         let model = ModelId("lfm3-1.7b".into());
         let mut first = InferenceSession::new(SessionId(1), model.clone(), FakeState::default());
-        let second = InferenceSession::new(SessionId(2), model, FakeState::default());
+        let mut second = InferenceSession::new(SessionId(2), model, FakeState::default());
         first.state_mut::<FakeState>().unwrap().counter = 7;
         assert_eq!(first.state_mut::<FakeState>().unwrap().counter, 7);
         assert_eq!(second.state_mut::<FakeState>().unwrap().counter, 0);
