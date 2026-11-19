@@ -1,12 +1,14 @@
 # LOLA ACE Android application
 
-This is the first native Android application shell for LOLA ACE.
+Native Android application for the LOLA ACE local-first runtime.
 
 ## Requirements
 
 - JDK 17
 - Android SDK Platform 36
 - Android SDK Build Tools 36.0.0
+- Android NDK 29.0.13113456
+- CMake 3.31.6
 - Gradle 9.5.0
 - Android Studio with support for Android Gradle Plugin 9.3.0
 
@@ -16,34 +18,30 @@ The repository currently does not include the Gradle Wrapper JAR. Install Gradle
 gradle -p android :app:testDebugUnitTest :app:assembleDebug
 ```
 
-GitHub Actions provisions the pinned Gradle version and Android SDK components for the same build.
+The first native build fetches the pinned llama.cpp source commit through CMake FetchContent. GitHub Actions provisions the pinned SDK, NDK, CMake and Gradle versions, runs the unit tests, assembles the APK and publishes it as the `lola-ace-debug-arm64` workflow artifact for 14 days.
 
 ## Current screens
 
-- **Conversas:** honest empty chat state. There is no inference backend yet, so no simulated model responses or enabled send action.
-- **Modelos:** reads the same `models/catalog.v1.json` asset used by the Rust `ace-models` crate. It displays the pinned LFM3-1.7B GGUF Q4_K_M metadata and clearly marks it as catalogued, not installed.
-- **Diagnóstico:** reports actual integration status; backend, resident model and runtime measurements are currently unavailable.
+- **Conversas:** loads the installed GGUF on demand, opens a local inference session and streams tokens into the chat UI. The app initially uses a 2K context and a 256-token output budget. Conversations and messages are stored in a private SQLite database on the device; the chat screen provides new-conversation, history and confirmed local deletion controls.
+- **Modelos:** reads the canonical `models/catalog.v1.json` asset, downloads to app-private storage, verifies SHA-256 and supports cancel/resume/delete. Deletion is blocked while the model is loading or resident.
+- **Diagnóstico:** reports actual backend/model state. Device measurements remain unavailable until a physical-device run is performed.
 
 ## Model manager
 
 See [Android model manager implementation](../docs/ace/ANDROID_MODEL_MANAGER.md) for transfer, verification, storage and recovery behaviour.
 
-## Architecture boundary
+## Reference inference backend
 
-Kotlin/Compose owns the Android UI and platform lifecycle. The model catalogue JSON is bundled as an asset from the repository's canonical `models/` directory; it is not duplicated in the Android source tree.
+See [Android reference backend](../docs/ace/ANDROID_REFERENCE_BACKEND.md) for the pinned llama.cpp revision, CMake options, session contract and limitations.
 
-Implemented in the model manager:
+The app depends on the backend-neutral Kotlin `LocalInferenceBackend` interface. llama.cpp is a temporary reference implementation, not the LOLA ACE scheduler or native inference engine.
 
-- resumable HTTPS downloads into app-private staging, cancellation and progress;
-- SHA-256 verification and atomic installation;
-- atomic installed-model registry and model/partial-file deletion.
+## Current limitations
 
-Still not implemented:
-
-- guaranteed background transfer after process death (partial files resume when the app is reopened);
-- persistent conversations and chat history;
-- Rust JNI/UniFFI bridge;
-- reference or native inference backend;
-- Pixel device tests, benchmarks or thermal measurements.
-
-Those are separate implementation slices and must not be inferred from this UI scaffold.
+- A model has to be installed, then explicitly loaded into memory.
+- The first reference profile is CPU-only ARM64, 2K context and up to 256 generated tokens in the app.
+- The full chat history is re-evaluated each turn; KV-cache reuse is not implemented.
+- Downloads resume after the app is reopened but are not guaranteed to continue after Android kills the process.
+- Long-history compaction is not implemented; start a new conversation when the 2K context budget is reached.
+- There is no cloud sync or app-specific database encryption layer.
+- No physical Pixel 8 Pro generation or performance/thermal result is claimed.

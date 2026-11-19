@@ -12,6 +12,7 @@ The first vertical slice is **LFM3-1.7B text streaming** on a Google Pixel 8 Pro
 
 ## Canonical documents
 
+- [Brand identity](BRAND_IDENTITY.md) — official LOLA logo and mascot usage.
 - [Architecture](ARCHITECTURE.md) — runtime components, ownership and execution paths.
 - [Inference contract](INFERENCE_CONTRACT.md) — backend-neutral API, streaming, state and cancellation.
 - [Android POC](ANDROID_POC.md) — app modules, screens, offline acceptance.
@@ -35,21 +36,23 @@ Implemented in Rust:
 - `ace-inference`: backend-neutral model/session/generation contract and ordered streaming chunk types.
 - `ace-models`: schema-versioned catalogue validation, immutable artifact revision checks, streaming SHA-256 verification and lifecycle state transitions.
 
-Implemented Android application shell:
+Implemented Android application:
 - Kotlin launcher activity and Jetpack Compose navigation for Conversas, Modelos and Diagnóstico;
-- reads the canonical `models/catalog.v1.json` asset and displays the pinned LFM3 Q4_K_M catalogue entry;
-- reports backend/model/download readiness honestly rather than simulating inference.
+- reads the canonical `models/catalog.v1.json` asset;
+- resumable private model downloads, SHA-256 verification and atomic installation;
+- backend-neutral Kotlin inference contract;
+- pinned CPU-only ARM64 llama.cpp reference adapter with `llama-common` Jinja chat rendering;
+- independent native context/sampler per session and Kotlin token streaming;
+- chat UI connected to real inference calls, with host-enforced output limits and cancellation;
+- private SQLite conversation storage, multiple conversations, local history selection and partial-response persistence.
 
-Implemented Android model management:
-- app-private staging and revision directories;
-- HTTP Range resume, cancellation and transfer progress;
-- streaming SHA-256 verification before atomic installation;
-- an atomic installed-model registry and background-thread deletion.
+Not yet validated:
+- physical Pixel 8 Pro inference, LFM3 golden outputs, cancellation stress and low-memory behaviour;
+- TTFT, prefill/decode throughput, PSS and thermal measurements;
+- incremental KV-cache reuse, foreground download guarantees and Kotlin↔Rust bridge;
+- Pixel-device context budgeting, history compaction and conversation deletion UI;
+- LOLA Native Engine implementation.
 
-Not implemented yet:
-- foreground/background transfer guarantees, retry policy and device-level transfer tests;
-- persistent conversations and queryable model registry;
-- reference inference backend, LOLA Native Engine and Android FFI bridge;
-- Pixel device validation, golden inference outputs and performance/thermal measurements.
+See [Android reference backend](ANDROID_REFERENCE_BACKEND.md) and [Android implementation status](ANDROID_IMPLEMENTATION.md) for details.
 
 Implementation readiness must be established by passing CI, device tests, golden outputs and measured performance. A document, type contract or state machine is not evidence that a model can already be downloaded or run.

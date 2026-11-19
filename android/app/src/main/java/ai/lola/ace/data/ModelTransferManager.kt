@@ -32,6 +32,7 @@ data class ModelTransferSnapshot(
     val bytesDownloaded: Long = 0L,
     val totalBytes: Long? = null,
     val message: String? = null,
+    val inUse: Boolean = false,
 ) {
     val progress: Float?
         get() = totalBytes?.takeIf { it > 0L }?.let {
@@ -48,6 +49,7 @@ class ModelTransferManager(context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val active = ConcurrentHashMap<String, TransferTask>()
     private val deleting = ConcurrentHashMap.newKeySet<String>()
+    private val inUseModels = ConcurrentHashMap.newKeySet<String>()
     private val listeners = CopyOnWriteArrayList<(ModelTransferSnapshot) -> Unit>()
 
     fun subscribe(listener: (ModelTransferSnapshot) -> Unit): AutoCloseable {
@@ -56,7 +58,7 @@ class ModelTransferManager(context: Context) {
     }
 
     fun snapshot(model: ModelArtifactSummary): ModelTransferSnapshot {
-        active[model.id]?.let { return it.snapshot }
+        active[model.id]?.let { return it.snapshot.copy(inUse = inUseModels.contains(model.id)) }
         if (deleting.contains(model.id)) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.DELETING)
         }
@@ -68,7 +70,7 @@ class ModelTransferManager(context: Context) {
             )
         }
         if (installed != null) {
-            return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED)
+            return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED, inUse = inUseModels.contains(model.id))
         }
         val partialBytes = runCatching { store.partialFile(model).length() }.getOrDefault(0L)
         return if (partialBytes > 0L) {
@@ -137,9 +139,27 @@ class ModelTransferManager(context: Context) {
         return true
     }
 
+    fun installedModelFile(model: ModelArtifactSummary): File? {
+        val record = runCatching { store.installedRecord(model) }.getOrNull() ?: return null
+        return store.destinationFile(model).takeIf { it.isFile && it.length() == record.sizeBytes }
+    }
+
+    fun setModelInUse(modelId: String, inUse: Boolean) {
+        if (inUse) {
+            inUseModels.add(modelId)
+        } else {
+            inUseModels.remove(modelId)
+        }
+        val current = active[modelId]?.snapshot
+            ?: ModelTransferSnapshot(modelId, ModelTransferStage.INSTALLED)
+        publish(current.copy(inUse = inUse))
+    }
+
+    fun isModelInUse(modelId: String): Boolean = inUseModels.contains(modelId)
+
     @Synchronized
     fun delete(model: ModelArtifactSummary): Boolean {
-        if (active.containsKey(model.id) || !deleting.add(model.id)) return false
+        if (active.containsKey(model.id) || inUseModels.contains(model.id) || !deleting.add(model.id)) return false
 
         publish(ModelTransferSnapshot(model.id, ModelTransferStage.DELETING))
         executor.execute {
