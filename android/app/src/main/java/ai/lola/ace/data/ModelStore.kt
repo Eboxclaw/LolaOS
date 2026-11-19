@@ -108,35 +108,27 @@ class ModelStore(context: Context) {
     @Synchronized
     fun deleteInstalled(model: ModelArtifactSummary): Boolean {
         val records = readRegistry()
-        val record = records[model.id]
+        val modelDirectory = safeChild(root, model.id)
         var removedAnything = false
 
-        if (record == null || record.revision == model.revision) {
-            val versionDirectory = destinationFile(model).parentFile
-                ?: throw IllegalStateException("Model destination has no parent directory")
-            if (versionDirectory.exists()) {
-                deleteManagedPath(versionDirectory)
+        // A model ID may have more than one installed revision over its lifetime.
+        if (modelDirectory.exists()) {
+            deleteManagedPath(modelDirectory)
+            removedAnything = true
+        }
+
+        // Remove resumable fragments for this model ID, including older catalogue revisions.
+        staging.listFiles()
+            ?.filter { file ->
+                file.name.startsWith("${model.id}-") && file.name.endsWith(".part")
+            }
+            ?.forEach { partial ->
+                deleteManagedPath(partial)
                 removedAnything = true
             }
 
-            val modelDirectory = versionDirectory.parentFile
-            if (modelDirectory != null &&
-                modelDirectory.isDirectory &&
-                modelDirectory.list().isNullOrEmpty()
-            ) {
-                deleteManagedPath(modelDirectory)
-            }
-
-            if (record?.revision == model.revision) {
-                records.remove(model.id)
-                writeRegistry(records)
-            }
-        }
-
-        val partial = partialFile(model)
-        if (partial.exists()) {
-            deleteManagedPath(partial)
-            removedAnything = true
+        if (records.remove(model.id) != null) {
+            writeRegistry(records)
         }
         return removedAnything
     }
