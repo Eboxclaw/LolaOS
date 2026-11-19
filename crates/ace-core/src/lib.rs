@@ -41,7 +41,7 @@ mod tests {
 
     #[test]
     fn decision_and_streaming_runs_have_independent_lifecycles() {
-        let decision = PipelineRun::new(RunId(1), PipelineKind::Decision);
+        let mut decision = PipelineRun::new(RunId(1), PipelineKind::Decision);
         let streaming = PipelineRun::new(RunId(2), PipelineKind::Streaming);
         assert_eq!(decision.state(), RunState::Created);
         assert_eq!(streaming.state(), RunState::Created);
