@@ -45,8 +45,7 @@ mod tests {
             Err(ArtifactValidationError::InvalidRevision)
         );
 
-        model.revision =
-            "b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf".to_owned();
+        model.revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned();
         assert_eq!(
             model.validate(),
             Err(ArtifactValidationError::DownloadUrlNotPinned)
