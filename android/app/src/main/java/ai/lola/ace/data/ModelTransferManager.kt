@@ -60,8 +60,6 @@ class ModelTransferManager(context: Context) {
         if (deleting.contains(model.id)) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.DELETING)
         }
-        if (deleting.contains(model.id)) return false
-
         if (store.installedRecord(model) != null) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED)
         }
@@ -92,6 +90,8 @@ class ModelTransferManager(context: Context) {
             )
             return false
         }
+
+        if (deleting.contains(model.id)) return false
 
         if (store.installedRecord(model) != null) {
             publish(ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED))
