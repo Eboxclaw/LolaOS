@@ -10,6 +10,8 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <exception>
+#include <utility>
 #include <mutex>
 #include <string>
 #include <vector>
