@@ -35,8 +35,13 @@ Implemented in Rust:
 - `ace-inference`: backend-neutral model/session/generation contract and ordered streaming chunk types.
 - `ace-models`: schema-versioned catalogue validation, immutable artifact revision checks, streaming SHA-256 verification and lifecycle state transitions.
 
+Implemented Android application shell:
+- Kotlin launcher activity and Jetpack Compose navigation for Conversas, Modelos and Diagnóstico;
+- reads the canonical `models/catalog.v1.json` asset and displays the pinned LFM3 Q4_K_M catalogue entry;
+- reports backend/model/download readiness honestly rather than simulating inference.
+
 Not implemented yet:
-- Android/Kotlin application, model download/resume and app-private model store;
+- Android model download/resume and app-private model store;
 - persistent model registry and conversation database;
 - reference inference backend, LOLA Native Engine and Android FFI bridge;
 - Pixel device validation, golden inference outputs and performance/thermal measurements.
