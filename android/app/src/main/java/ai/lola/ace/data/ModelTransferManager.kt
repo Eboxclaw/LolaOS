@@ -48,6 +48,7 @@ class ModelTransferManager(context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val active = ConcurrentHashMap<String, TransferTask>()
     private val deleting = ConcurrentHashMap.newKeySet<String>()
+    private val inUseModels = ConcurrentHashMap.newKeySet<String>()
     private val listeners = CopyOnWriteArrayList<(ModelTransferSnapshot) -> Unit>()
 
     fun subscribe(listener: (ModelTransferSnapshot) -> Unit): AutoCloseable {
@@ -137,9 +138,24 @@ class ModelTransferManager(context: Context) {
         return true
     }
 
+    fun installedModelFile(model: ModelArtifactSummary): File? {
+        val record = runCatching { store.installedRecord(model) }.getOrNull() ?: return null
+        return store.destinationFile(model).takeIf { it.isFile && it.length() == record.sizeBytes }
+    }
+
+    fun setModelInUse(modelId: String, inUse: Boolean) {
+        if (inUse) {
+            inUseModels.add(modelId)
+        } else {
+            inUseModels.remove(modelId)
+        }
+    }
+
+    fun isModelInUse(modelId: String): Boolean = inUseModels.contains(modelId)
+
     @Synchronized
     fun delete(model: ModelArtifactSummary): Boolean {
-        if (active.containsKey(model.id) || !deleting.add(model.id)) return false
+        if (active.containsKey(model.id) || inUseModels.contains(model.id) || !deleting.add(model.id)) return false
 
         publish(ModelTransferSnapshot(model.id, ModelTransferStage.DELETING))
         executor.execute {
