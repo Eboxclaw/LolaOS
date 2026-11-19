@@ -304,8 +304,9 @@ fun ChatScreen(
                     }
                     assistantPersisted = true
                 }
-            } catch (_: CancellationException) {
-                // A user cancellation is a normal end to local generation.
+            } catch (error: CancellationException) {
+                // Persist any partial response in finally, then preserve structured cancellation.
+                throw error
             } catch (error: Exception) {
                 localError = error.message ?: "Erro durante a geração local."
             } finally {
