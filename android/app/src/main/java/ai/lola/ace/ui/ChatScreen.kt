@@ -97,6 +97,8 @@ fun ChatScreen(
                 sessionReady = true
                 transferManager.setModelInUse(model.id, true)
                 localError = null
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 sessionReady = false
                 localError = error.message ?: "Não foi possível abrir a sessão local."
@@ -125,6 +127,9 @@ fun ChatScreen(
             model?.let { transferManager.setModelInUse(it.id, true) }
             try {
                 backend.loadModel(file)
+            } catch (error: CancellationException) {
+                // A native load may finish and commit its handle even when this screen leaves.
+                throw error
             } catch (error: LinkageError) {
                 model?.let { transferManager.setModelInUse(it.id, false) }
                 localError = error.message ?: "A biblioteca nativa não foi carregada."
@@ -144,6 +149,8 @@ fun ChatScreen(
                 generating = false
                 chatLines.clear()
                 localError = null
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 localError = error.message ?: "Não foi possível libertar o modelo."
             }
