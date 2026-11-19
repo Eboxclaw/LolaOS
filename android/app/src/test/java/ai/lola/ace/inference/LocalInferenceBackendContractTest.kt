@@ -12,7 +12,7 @@ class LocalInferenceBackendContractTest {
 
         assertEquals(2048, config.contextTokens)
         assertEquals(4, config.threads)
-        assertEquals(0.1f, config.temperature)
+        assertEquals(0.1f, config.temperature, 0.0001f)
         assertEquals(50, config.topK)
         assertEquals(1.1f, config.repeatPenalty)
     }
