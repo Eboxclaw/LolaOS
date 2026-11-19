@@ -22,6 +22,7 @@ enum class ModelTransferStage {
     INSTALLED,
     PAUSED,
     CANCELLED,
+    DELETING,
     FAILED,
 }
 
@@ -46,6 +47,7 @@ class ModelTransferManager(context: Context) {
     }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val active = ConcurrentHashMap<String, TransferTask>()
+    private val deleting = ConcurrentHashMap.newKeySet<String>()
     private val listeners = CopyOnWriteArrayList<(ModelTransferSnapshot) -> Unit>()
 
     fun subscribe(listener: (ModelTransferSnapshot) -> Unit): AutoCloseable {
@@ -55,6 +57,11 @@ class ModelTransferManager(context: Context) {
 
     fun snapshot(model: ModelArtifactSummary): ModelTransferSnapshot {
         active[model.id]?.let { return it.snapshot }
+        if (deleting.contains(model.id)) {
+            return ModelTransferSnapshot(model.id, ModelTransferStage.DELETING)
+        }
+        if (deleting.contains(model.id)) return false
+
         if (store.installedRecord(model) != null) {
             return ModelTransferSnapshot(model.id, ModelTransferStage.INSTALLED)
         }
@@ -71,6 +78,7 @@ class ModelTransferManager(context: Context) {
         }
     }
 
+    @Synchronized
     fun download(model: ModelArtifactSummary): Boolean {
         try {
             ModelDownloadPolicy.validateArtifact(model)
@@ -113,22 +121,28 @@ class ModelTransferManager(context: Context) {
         return true
     }
 
+    @Synchronized
     fun delete(model: ModelArtifactSummary): Boolean {
-        if (active.containsKey(model.id)) return false
-        val deleted = runCatching { store.deleteInstalled(model) }.getOrElse { error ->
-            publish(
-                ModelTransferSnapshot(
-                    modelId = model.id,
-                    stage = ModelTransferStage.FAILED,
-                    message = error.message ?: "Não foi possível remover o modelo",
-                ),
-            )
-            return false
+        if (active.containsKey(model.id) || !deleting.add(model.id)) return false
+
+        publish(ModelTransferSnapshot(model.id, ModelTransferStage.DELETING))
+        executor.execute {
+            try {
+                store.deleteInstalled(model)
+                publish(ModelTransferSnapshot(model.id, ModelTransferStage.AVAILABLE))
+            } catch (error: Exception) {
+                publish(
+                    ModelTransferSnapshot(
+                        modelId = model.id,
+                        stage = ModelTransferStage.FAILED,
+                        message = error.message ?: "Não foi possível remover o modelo",
+                    ),
+                )
+            } finally {
+                deleting.remove(model.id)
+            }
         }
-        if (deleted) {
-            publish(ModelTransferSnapshot(model.id, ModelTransferStage.AVAILABLE))
-        }
-        return deleted
+        return true
     }
 
     private fun performDownload(model: ModelArtifactSummary, task: TransferTask) {
