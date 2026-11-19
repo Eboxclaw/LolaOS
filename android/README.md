@@ -22,7 +22,7 @@ The first native build fetches the pinned llama.cpp source commit through CMake 
 
 ## Current screens
 
-- **Conversas:** loads the installed GGUF on demand, opens a local inference session and streams tokens into the chat UI. The app initially uses a 2K context and a 256-token output budget. Conversation history is currently in memory only.
+- **Conversas:** loads the installed GGUF on demand, opens a local inference session and streams tokens into the chat UI. The app initially uses a 2K context and a 256-token output budget. Conversations and messages are stored in a private SQLite database on the device; the chat screen provides new-conversation, history and confirmed local deletion controls.
 - **Modelos:** reads the canonical `models/catalog.v1.json` asset, downloads to app-private storage, verifies SHA-256 and supports cancel/resume/delete. Deletion is blocked while the model is loading or resident.
 - **Diagnóstico:** reports actual backend/model state. Device measurements remain unavailable until a physical-device run is performed.
 
@@ -42,5 +42,6 @@ The app depends on the backend-neutral Kotlin `LocalInferenceBackend` interface.
 - The first reference profile is CPU-only ARM64, 2K context and up to 256 generated tokens in the app.
 - The full chat history is re-evaluated each turn; KV-cache reuse is not implemented.
 - Downloads resume after the app is reopened but are not guaranteed to continue after Android kills the process.
-- Conversations are not persisted.
+- Long-history compaction is not implemented; start a new conversation when the 2K context budget is reached.
+- There is no cloud sync or app-specific database encryption layer.
 - No physical Pixel 8 Pro generation or performance/thermal result is claimed.

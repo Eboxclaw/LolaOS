@@ -43,12 +43,14 @@ Implemented Android application:
 - backend-neutral Kotlin inference contract;
 - pinned CPU-only ARM64 llama.cpp reference adapter with `llama-common` Jinja chat rendering;
 - independent native context/sampler per session and Kotlin token streaming;
-- chat UI connected to real inference calls, with host-enforced output limits and cancellation.
+- chat UI connected to real inference calls, with host-enforced output limits and cancellation;
+- private SQLite conversation storage, multiple conversations, local history selection and partial-response persistence.
 
 Not yet validated:
 - physical Pixel 8 Pro inference, LFM3 golden outputs, cancellation stress and low-memory behaviour;
 - TTFT, prefill/decode throughput, PSS and thermal measurements;
-- conversation persistence, incremental KV-cache reuse, foreground download guarantees and Kotlin↔Rust bridge;
+- incremental KV-cache reuse, foreground download guarantees and Kotlin↔Rust bridge;
+- Pixel-device context budgeting, history compaction and conversation deletion UI;
 - LOLA Native Engine implementation.
 
 See [Android reference backend](ANDROID_REFERENCE_BACKEND.md) and [Android implementation status](ANDROID_IMPLEMENTATION.md) for details.

@@ -7,15 +7,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,16 +35,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ai.lola.ace.data.ChatRepository
+import ai.lola.ace.data.ChatRepositoryProvider
 import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelTransferManager
+import ai.lola.ace.data.StoredConversation
 import ai.lola.ace.inference.InferenceChatMessage
 import ai.lola.ace.inference.LocalInferenceBackend
 import ai.lola.ace.inference.LocalInferenceState
 import ai.lola.ace.inference.ReferenceSessionConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val CHAT_SESSION_ID = "primary-chat"
 private const val MAX_OUTPUT_TOKENS = 256
@@ -60,6 +69,8 @@ fun ChatScreen(
     backend: LocalInferenceBackend,
     onOpenModels: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { ChatRepositoryProvider.get(context) }
     val runtimeState by backend.state.collectAsState()
     val scope = rememberCoroutineScope()
     val chatLines = remember { mutableStateListOf<ChatLine>() }
@@ -70,6 +81,12 @@ fun ChatScreen(
     var sessionReady by remember { mutableStateOf(false) }
     var generating by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+    var conversations by remember { mutableStateOf<List<StoredConversation>>(emptyList()) }
+    var currentConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var showHistory by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var historyLoading by remember { mutableStateOf(true) }
+    var conversationLoading by remember { mutableStateOf(false) }
 
     DisposableEffect(transferManager) {
         val subscription = transferManager.subscribe { transferVersion++ }
@@ -78,6 +95,52 @@ fun ChatScreen(
 
     val installedFile = remember(model, transferVersion) {
         model?.let(transferManager::installedModelFile)
+    }
+
+    suspend fun refreshConversations() {
+        conversations = withContext(Dispatchers.IO) {
+            repository.listConversations()
+        }
+    }
+
+    LaunchedEffect(repository) {
+        historyLoading = true
+        try {
+            val initialConversationId = withContext(Dispatchers.IO) {
+                repository.latestConversationId() ?: repository.createConversation()
+            }
+            refreshConversations()
+            currentConversationId = initialConversationId
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            localError = error.message ?: "Não foi possível abrir o histórico local."
+        } finally {
+            historyLoading = false
+        }
+    }
+
+    LaunchedEffect(currentConversationId) {
+        val conversationId = currentConversationId ?: return@LaunchedEffect
+        conversationLoading = true
+        try {
+            val messages = withContext(Dispatchers.IO) {
+                repository.loadMessages(conversationId)
+            }
+            chatLines.clear()
+            chatLines.addAll(
+                messages
+                    .filter { it.role == "user" || it.role == "assistant" }
+                    .map { ChatLine(role = it.role, text = it.content) },
+            )
+            localError = null
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            localError = error.message ?: "Não foi possível carregar esta conversa."
+        } finally {
+            conversationLoading = false
+        }
     }
 
     suspend fun ensureChatSession() {
@@ -123,6 +186,62 @@ fun ChatScreen(
         }
     }
 
+    fun createNewConversation() {
+        if (generating) return
+        conversationLoading = true
+        scope.launch {
+            try {
+                val newId = withContext(Dispatchers.IO) {
+                    repository.createConversation()
+                }
+                currentConversationId = newId
+                refreshConversations()
+                showHistory = false
+                localError = null
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                localError = error.message ?: "Não foi possível criar uma conversa."
+                conversationLoading = false
+            }
+        }
+    }
+
+    fun selectConversation(conversationId: Long) {
+        if (generating || currentConversationId == conversationId) {
+            showHistory = false
+            return
+        }
+        conversationLoading = true
+        currentConversationId = conversationId
+        showHistory = false
+        localError = null
+    }
+
+    fun deleteCurrentConversation() {
+        val deletingId = currentConversationId ?: return
+        if (generating || conversationLoading) return
+
+        showDeleteConfirmation = false
+        conversationLoading = true
+        scope.launch {
+            try {
+                val nextConversationId = withContext(Dispatchers.IO) {
+                    repository.deleteConversation(deletingId)
+                    repository.latestConversationId() ?: repository.createConversation()
+                }
+                currentConversationId = nextConversationId
+                refreshConversations()
+                localError = null
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                conversationLoading = false
+                localError = error.message ?: "Não foi possível apagar esta conversa."
+            }
+        }
+    }
+
     fun loadModel() {
         val file = installedFile ?: return
         scope.launch {
@@ -132,7 +251,6 @@ fun ChatScreen(
             try {
                 backend.loadModel(file)
             } catch (error: CancellationException) {
-                // A native load may finish and commit its handle even when this screen leaves.
                 throw error
             } catch (error: LinkageError) {
                 model?.let { transferManager.setModelInUse(it.id, false) }
@@ -151,7 +269,7 @@ fun ChatScreen(
                 model?.let { transferManager.setModelInUse(it.id, false) }
                 sessionReady = false
                 generating = false
-                chatLines.clear()
+                // Keep the local transcript visible when the model is unloaded.
                 localError = null
             } catch (error: CancellationException) {
                 throw error
@@ -163,7 +281,8 @@ fun ChatScreen(
 
     fun sendMessage() {
         val text = input.trim()
-        if (text.isEmpty() || !sessionReady || generating) return
+        val conversationId = currentConversationId
+        if (text.isEmpty() || !sessionReady || generating || conversationLoading || conversationId == null) return
 
         val history = buildList {
             add(
@@ -185,26 +304,63 @@ fun ChatScreen(
         localError = null
 
         scope.launch {
+            val response = StringBuilder()
+            var assistantPersisted = false
             try {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    repository.appendMessage(conversationId, "user", text)
+                }
+                refreshConversations()
+
                 backend.generate(
                     sessionId = CHAT_SESSION_ID,
                     messages = history,
                     maxOutputTokens = MAX_OUTPUT_TOKENS,
                 ).collect { delta ->
+                    response.append(delta)
                     val last = chatLines.lastIndex
                     if (last >= 0 && chatLines[last].role == "assistant") {
-                        chatLines[last] = chatLines[last].copy(text = chatLines[last].text + delta)
+                        chatLines[last] = chatLines[last].copy(text = response.toString())
                     }
                 }
-            } catch (_: CancellationException) {
-                // A user cancellation is a normal end to local generation.
+
+                if (response.isNotBlank()) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        repository.appendMessage(conversationId, "assistant", response.toString())
+                    }
+                    assistantPersisted = true
+                }
+            } catch (error: CancellationException) {
+                // Persist any partial response in finally, then preserve structured cancellation.
+                throw error
             } catch (error: Exception) {
                 localError = error.message ?: "Erro durante a geração local."
             } finally {
+                if (!assistantPersisted && response.isNotBlank()) {
+                    runCatching {
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            repository.appendMessage(conversationId, "assistant", response.toString())
+                        }
+                    }.onFailure { error ->
+                        localError = error.message ?: "Não foi possível guardar a resposta parcial."
+                    }
+                } else if (response.isBlank()) {
+                    // Do not leave a permanent typing placeholder when the backend returns no text.
+                    val last = chatLines.lastOrNull()
+                    if (last?.role == "assistant" && last.text.isBlank()) {
+                        chatLines.removeAt(chatLines.lastIndex)
+                    }
+                }
+                runCatching { refreshConversations() }
                 generating = false
             }
         }
     }
+
+    val currentConversationTitle = conversations
+        .firstOrNull { it.id == currentConversationId }
+        ?.title
+        ?: ChatRepository.DEFAULT_CONVERSATION_TITLE
 
     Column(
         modifier = Modifier
@@ -212,6 +368,64 @@ fun ChatScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(
+                onClick = ::createNewConversation,
+                enabled = !generating && !historyLoading && !conversationLoading,
+            ) { Text("Nova conversa") }
+            TextButton(
+                onClick = { showDeleteConfirmation = true },
+                enabled = currentConversationId != null &&
+                    !generating && !historyLoading && !conversationLoading,
+            ) { Text("Apagar") }
+            Spacer(modifier = Modifier.weight(1f))
+            Column {
+                TextButton(
+                    onClick = { showHistory = true },
+                    enabled = conversations.isNotEmpty() && !historyLoading && !generating && !conversationLoading,
+                ) { Text("Histórico (${conversations.size})") }
+                DropdownMenu(
+                    expanded = showHistory,
+                    onDismissRequest = { showHistory = false },
+                ) {
+                    conversations.forEach { conversation ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = conversation.title,
+                                    maxLines = 1,
+                                )
+                            },
+                            onClick = { selectConversation(conversation.id) },
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Apagar conversa?") },
+                text = {
+                    Text("Esta conversa e as respectivas mensagens serão removidas deste dispositivo. Os modelos instalados não serão afectados.")
+                },
+                confirmButton = {
+                    TextButton(onClick = ::deleteCurrentConversation) {
+                        Text("Apagar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancelar")
+                    }
+                },
+            )
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(
                 text = "CONVERSA LOCAL",
@@ -220,9 +434,14 @@ fun ChatScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = model?.displayName ?: "Nenhum modelo no catálogo",
+                text = currentConversationTitle,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = model?.displayName ?: "Nenhum modelo no catálogo",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = when (runtimeState) {
@@ -354,29 +573,33 @@ fun ChatScreen(
             )
         }
 
-        if (runtimeState is LocalInferenceState.Loaded) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                state = listState,
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                itemsIndexed(chatLines) { _, line ->
-                    ChatMessageBubble(line)
-                }
-                if (chatLines.isEmpty()) {
-                    item {
-                        Text(
-                            text = "O modelo está pronto. Envia uma mensagem para começar. A primeira resposta pode demorar enquanto o motor prepara o contexto.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            state = listState,
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            itemsIndexed(chatLines) { _, line ->
+                ChatMessageBubble(line)
+            }
+            if (chatLines.isEmpty()) {
+                item {
+                    Text(
+                        text = if (runtimeState is LocalInferenceState.Loaded) {
+                            "O modelo está pronto. Envia uma mensagem para começar. A primeira resposta pode demorar enquanto o motor prepara o contexto."
+                        } else {
+                            "As conversas ficam guardadas neste dispositivo. Carrega o modelo para continuar a conversar."
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
+        }
 
+        if (runtimeState is LocalInferenceState.Loaded) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -385,26 +608,25 @@ fun ChatScreen(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    enabled = sessionReady && !generating,
+                    enabled = sessionReady && !generating && !conversationLoading && currentConversationId != null,
                     placeholder = { Text("Escreve uma mensagem…") },
                     maxLines = 4,
                 )
                 Button(
                     onClick = ::sendMessage,
-                    enabled = sessionReady && !generating && input.isNotBlank(),
+                    enabled = sessionReady && !generating && !conversationLoading && input.isNotBlank() && currentConversationId != null,
                 ) {
                     Text("Enviar")
                 }
             }
             Text(
-                text = "Motor de referência llama.cpp · CPU · contexto 2K · máximo 256 tokens por resposta · conversa não persistida",
+                text = "Motor de referência llama.cpp · CPU · contexto 2K · máximo 256 tokens por resposta · histórico guardado localmente",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )
         } else {
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Ainda não há geração de texto disponível. A interface só activa o chat depois de o modelo estar instalado, carregado e com uma sessão válida.",
+                text = "O histórico continua disponível sem o modelo carregado. Carrega o LFM3 para enviar novas mensagens.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
