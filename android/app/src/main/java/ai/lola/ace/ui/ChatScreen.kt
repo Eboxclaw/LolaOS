@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ai.lola.ace.data.ChatRepository
+import ai.lola.ace.data.ChatRepositoryProvider
 import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelTransferManager
 import ai.lola.ace.data.StoredConversation
@@ -70,7 +71,7 @@ fun ChatScreen(
     onOpenModels: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { ChatRepository(context) }
+    val repository = remember(context) { ChatRepositoryProvider.get(context) }
     val runtimeState by backend.state.collectAsState()
     val scope = rememberCoroutineScope()
     val chatLines = remember { mutableStateListOf<ChatLine>() }
@@ -85,10 +86,6 @@ fun ChatScreen(
     var currentConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     var historyLoading by remember { mutableStateOf(true) }
-
-    DisposableEffect(repository) {
-        onDispose { repository.close() }
-    }
 
     DisposableEffect(transferManager) {
         val subscription = transferManager.subscribe { transferVersion++ }
@@ -507,29 +504,33 @@ fun ChatScreen(
             )
         }
 
-        if (runtimeState is LocalInferenceState.Loaded) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                state = listState,
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                itemsIndexed(chatLines) { _, line ->
-                    ChatMessageBubble(line)
-                }
-                if (chatLines.isEmpty()) {
-                    item {
-                        Text(
-                            text = "O modelo está pronto. Envia uma mensagem para começar. A primeira resposta pode demorar enquanto o motor prepara o contexto.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            state = listState,
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            itemsIndexed(chatLines) { _, line ->
+                ChatMessageBubble(line)
+            }
+            if (chatLines.isEmpty()) {
+                item {
+                    Text(
+                        text = if (runtimeState is LocalInferenceState.Loaded) {
+                            "O modelo está pronto. Envia uma mensagem para começar. A primeira resposta pode demorar enquanto o motor prepara o contexto."
+                        } else {
+                            "As conversas ficam guardadas neste dispositivo. Carrega o modelo para continuar a conversar."
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
+        }
 
+        if (runtimeState is LocalInferenceState.Loaded) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -555,9 +556,8 @@ fun ChatScreen(
                 style = MaterialTheme.typography.labelSmall,
             )
         } else {
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Ainda não há geração de texto disponível. A interface só activa o chat depois de o modelo estar instalado, carregado e com uma sessão válida.",
+                text = "O histórico continua disponível sem o modelo carregado. Carrega o LFM3 para enviar novas mensagens.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
