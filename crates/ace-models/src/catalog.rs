@@ -221,5 +221,5 @@ fn is_sha256(value: &str) -> bool {
 }
 
 fn is_https_url(value: &str) -> bool {
-    value.starts_with("https://") && !value.bytes().any(u8::is_ascii_whitespace)
+    value.starts_with("https://") && !value.bytes().any(|byte| byte.is_ascii_whitespace())
 }
