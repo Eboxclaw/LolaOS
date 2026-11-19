@@ -119,7 +119,7 @@ impl ModelArtifact {
             return Err(ArtifactValidationError::InvalidFileName);
         }
 
-        let extension_matches = match self.format {
+        let extension_matches = match &self.format {
             ArtifactFormat::Gguf => self.file_name.ends_with(".gguf"),
             ArtifactFormat::Onnx => self.file_name.ends_with(".onnx"),
         };
