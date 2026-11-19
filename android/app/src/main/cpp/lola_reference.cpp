@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <chrono>
 #include <cstring>
 #include <exception>
 #include <utility>
@@ -205,6 +206,33 @@ bool emit_utf8(JNIEnv *env, jobject sink, jmethodID on_token, std::string &pendi
 bool callback_cancelled(JNIEnv *env, jobject sink, jmethodID is_cancelled) {
     const jboolean cancelled = env->CallBooleanMethod(sink, is_cancelled);
     return env->ExceptionCheck() || cancelled == JNI_TRUE;
+}
+
+using SteadyClock = std::chrono::steady_clock;
+
+int64_t elapsed_millis(SteadyClock::time_point start, SteadyClock::time_point end) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
+
+void emit_metrics(
+    JNIEnv *env,
+    jobject sink,
+    jmethodID on_metrics,
+    int32_t prompt_tokens,
+    int32_t generated_tokens,
+    int64_t prefill_millis,
+    int64_t ttft_millis,
+    int64_t decode_millis,
+    int64_t total_millis) {
+    env->CallVoidMethod(
+        sink,
+        on_metrics,
+        static_cast<jint>(prompt_tokens),
+        static_cast<jint>(generated_tokens),
+        static_cast<jlong>(prefill_millis),
+        static_cast<jlong>(ttft_millis),
+        static_cast<jlong>(decode_millis),
+        static_cast<jlong>(total_millis));
 }
 
 bool decode_prompt(SessionHandle *session, const std::vector<llama_token> &tokens) {
@@ -466,12 +494,14 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
 
     jclass sink_class = env->GetObjectClass(sink);
     jmethodID on_token = env->GetMethodID(sink_class, "onToken", "(Ljava/lang/String;)V");
+    jmethodID on_metrics = env->GetMethodID(sink_class, "onMetrics", "(IIJJJJ)V");
     jmethodID is_cancelled = env->GetMethodID(sink_class, "isCancelled", "()Z");
     env->DeleteLocalRef(sink_class);
-    if (on_token == nullptr || is_cancelled == nullptr) {
+    if (on_token == nullptr || on_metrics == nullptr || is_cancelled == nullptr) {
         return -1;
     }
 
+    const auto generation_start = SteadyClock::now();
     const jsize message_count = env->GetArrayLength(roles);
     std::vector<std::string> role_strings;
     std::vector<std::string> content_strings;
@@ -557,25 +587,50 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
         return -1;
     }
 
-    if (session->cancelled.load()) return 1;
+    if (session->cancelled.load()) {
+        const auto cancelled_at = SteadyClock::now();
+        emit_metrics(
+            env, sink, on_metrics, prompt_tokens_count, 0, 0, 0, 0,
+            elapsed_millis(generation_start, cancelled_at));
+        return 1;
+    }
     llama_memory_clear(llama_get_memory(session->context), false);
     common_sampler_reset(session->sampler);
 
+    const auto prefill_start = SteadyClock::now();
     if (!decode_prompt(session, prompt_tokens)) {
-        if (session->cancelled.load()) return 1;
+        if (session->cancelled.load()) {
+            const auto prefill_end = SteadyClock::now();
+            emit_metrics(
+                env, sink, on_metrics, prompt_tokens_count, 0,
+                elapsed_millis(prefill_start, prefill_end), 0, 0,
+                elapsed_millis(generation_start, prefill_end));
+            return 1;
+        }
         throw_java(env, "java/lang/IllegalStateException",
                    "llama.cpp failed while processing the prompt");
         return -1;
     }
+    const auto prefill_end = SteadyClock::now();
 
     std::string pending_utf8;
     llama_pos position = static_cast<llama_pos>(prompt_tokens.size());
     int32_t generated = 0;
+    SteadyClock::time_point first_token_time{};
 
     while (generated < max_output_tokens) {
         if (session->cancelled.load() || callback_cancelled(env, sink, is_cancelled)) {
             session->cancelled.store(true);
             emit_utf8(env, sink, on_token, pending_utf8, true);
+            const auto generation_end = SteadyClock::now();
+            emit_metrics(
+                env, sink, on_metrics, prompt_tokens_count, generated,
+                elapsed_millis(prefill_start, prefill_end),
+                first_token_time == SteadyClock::time_point{}
+                    ? 0
+                    : elapsed_millis(generation_start, first_token_time),
+                elapsed_millis(prefill_end, generation_end),
+                elapsed_millis(generation_start, generation_end));
             return 1;
         }
 
@@ -596,6 +651,9 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
             return -1;
         }
 
+        if (generated == 0) {
+            first_token_time = SteadyClock::now();
+        }
         ++generated;
         if (generated < max_output_tokens) {
             if (session->cancelled.load()) {
@@ -614,6 +672,15 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
     if (!emit_utf8(env, sink, on_token, pending_utf8, true)) {
         return -1;
     }
+    const auto generation_end = SteadyClock::now();
+    emit_metrics(
+        env, sink, on_metrics, prompt_tokens_count, generated,
+        elapsed_millis(prefill_start, prefill_end),
+        first_token_time == SteadyClock::time_point{}
+            ? 0
+            : elapsed_millis(generation_start, first_token_time),
+        elapsed_millis(prefill_end, generation_end),
+        elapsed_millis(generation_start, generation_end));
     return 0;
 }
 
