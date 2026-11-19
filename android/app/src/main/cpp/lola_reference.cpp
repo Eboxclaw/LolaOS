@@ -658,6 +658,15 @@ Java_ai_lola_ace_inference_LlamaCppReferenceBackend_nativeGenerate(
         if (generated < max_output_tokens) {
             if (session->cancelled.load()) {
                 emit_utf8(env, sink, on_token, pending_utf8, true);
+                const auto generation_end = SteadyClock::now();
+                emit_metrics(
+                    env, sink, on_metrics, prompt_tokens_count, generated,
+                    elapsed_millis(prefill_start, prefill_end),
+                    first_token_time == SteadyClock::time_point{}
+                        ? 0
+                        : elapsed_millis(generation_start, first_token_time),
+                    elapsed_millis(prefill_end, generation_end),
+                    elapsed_millis(generation_start, generation_end));
                 return 1;
             }
             if (!decode_next_token(session, token, position)) {
