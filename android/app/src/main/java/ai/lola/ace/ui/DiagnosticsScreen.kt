@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ai.lola.ace.inference.InferenceRunMetrics
 import ai.lola.ace.inference.LocalInferenceState
 
 @Composable
@@ -20,6 +21,7 @@ fun DiagnosticsScreen(
     modelCount: Int,
     catalogueAvailable: Boolean,
     inferenceState: LocalInferenceState,
+    latestMetrics: InferenceRunMetrics?,
 ) {
     Column(
         modifier = Modifier
@@ -55,15 +57,35 @@ fun DiagnosticsScreen(
         )
         DiagnosticCard("ABI DO APK", "arm64-v8a")
         DiagnosticCard("DISPOSITIVO", "Não confirmado por teste físico")
-        DiagnosticCard("TTFT / PREFILL / DECODE", "Sem medições")
-        DiagnosticCard("MEMÓRIA / TEMPERATURA", "Sem medições")
+        DiagnosticCard(
+            "TOKENS DE PROMPT / SAÍDA",
+            latestMetrics?.let { "${it.promptTokens} / ${it.generatedTokens}" } ?: "Ainda sem geração",
+        )
+        DiagnosticCard(
+            "TTFT",
+            latestMetrics?.let { formatMillis(it.timeToFirstTokenMillis) } ?: "Ainda sem geração",
+        )
+        DiagnosticCard(
+            "PREFILL",
+            latestMetrics?.let { formatMillis(it.prefillMillis) } ?: "Ainda sem geração",
+        )
+        DiagnosticCard(
+            "DECODE",
+            latestMetrics?.decodeTokensPerSecond?.let { String.format("%.2f tok/s", it) }
+                ?: "Ainda sem geração",
+        )
+        DiagnosticCard(
+            "TEMPO TOTAL",
+            latestMetrics?.let { formatMillis(it.totalMillis) } ?: "Ainda sem geração",
+        )
+        DiagnosticCard("PSS / TEMPERATURA", "Sem medições físicas")
 
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Text(
-                text = "O backend de referência já está ligado. TTFT, prefill, decode, memória e temperatura continuam sem medições físicas no Pixel.",
+                text = "O TTFT, prefill, decode e tempo total acima são medidos pelo relógio monotónico nativo durante cada geração. PSS, temperatura, bateria e frequência CPU exigem instrumentação física no Pixel.",
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
@@ -95,3 +117,5 @@ private fun DiagnosticCard(label: String, value: String) {
         }
     }
 }
+
+private fun formatMillis(value: Long): String = "${value} ms"
