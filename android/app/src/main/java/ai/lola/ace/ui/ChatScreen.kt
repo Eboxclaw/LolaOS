@@ -103,7 +103,9 @@ fun ChatScreen(
             }
         } else {
             sessionReady = false
-            if (runtimeState !is LocalInferenceState.Loaded) {
+            if (runtimeState is LocalInferenceState.Unloaded ||
+                runtimeState is LocalInferenceState.Error
+            ) {
                 model?.let { transferManager.setModelInUse(it.id, false) }
             }
         }
@@ -119,9 +121,15 @@ fun ChatScreen(
         val file = installedFile ?: return
         scope.launch {
             localError = null
+            // Protect the app-private GGUF from deletion while llama.cpp may mmap/read it.
+            model?.let { transferManager.setModelInUse(it.id, true) }
             try {
                 backend.loadModel(file)
+            } catch (error: LinkageError) {
+                model?.let { transferManager.setModelInUse(it.id, false) }
+                localError = error.message ?: "A biblioteca nativa não foi carregada."
             } catch (error: Exception) {
+                model?.let { transferManager.setModelInUse(it.id, false) }
                 localError = error.message ?: "Falha ao carregar o modelo."
             }
         }
