@@ -94,7 +94,7 @@ class ModelTransferManager(context: Context) {
         if (active.putIfAbsent(model.id, task) != null) return false
 
         val existingBytes = runCatching { store.partialFile(model).length() }.getOrDefault(0L)
-        task.update(
+        update(task,
             ModelTransferSnapshot(
                 modelId = model.id,
                 stage = ModelTransferStage.DOWNLOADING,
@@ -213,7 +213,7 @@ class ModelTransferManager(context: Context) {
                                 val now = System.currentTimeMillis()
                                 if (now - lastSnapshot[0] >= PROGRESS_INTERVAL_MS) {
                                     lastSnapshot[0] = now
-                                    task.update(
+                                    update(task,
                                         ModelTransferSnapshot(
                                             modelId = model.id,
                                             stage = ModelTransferStage.DOWNLOADING,
@@ -240,7 +240,7 @@ class ModelTransferManager(context: Context) {
             }
 
             check(task.isCancelled()) { "Transferência cancelada" }
-            task.update(
+            update(task,
                 ModelTransferSnapshot(
                     modelId = model.id,
                     stage = ModelTransferStage.VERIFYING,
@@ -263,7 +263,7 @@ class ModelTransferManager(context: Context) {
                 sizeBytes = verified.first,
                 sha256 = verified.second,
             )
-            task.update(
+            update(task,
                 ModelTransferSnapshot(
                     modelId = model.id,
                     stage = ModelTransferStage.INSTALLED,
@@ -273,7 +273,7 @@ class ModelTransferManager(context: Context) {
                 ),
             )
         } catch (_: TransferCancelledException) {
-            task.update(
+            update(task,
                 ModelTransferSnapshot(
                     modelId = model.id,
                     stage = ModelTransferStage.CANCELLED,
@@ -283,7 +283,7 @@ class ModelTransferManager(context: Context) {
             )
         } catch (error: Exception) {
             val wasCancelled = task.isCancelled()
-            task.update(
+            update(task,
                 ModelTransferSnapshot(
                     modelId = model.id,
                     stage = if (wasCancelled) ModelTransferStage.CANCELLED else ModelTransferStage.FAILED,
@@ -296,9 +296,11 @@ class ModelTransferManager(context: Context) {
                 ),
             )
         } finally {
+            task.connection?.disconnect()
+            task.connection = null
             active.remove(model.id, task)
-            // Publish a final stable state after the active-task entry is removed.
-            publish(snapshot(model))
+            // Preserve the terminal result instead of replacing it with a generic paused state.
+            publish(task.snapshot)
         }
     }
 
@@ -329,7 +331,8 @@ class ModelTransferManager(context: Context) {
         task: TransferTask,
     ): HttpURLConnection {
         var current = URL(source)
-        repeat(MAX_REDIRECTS + 1) { redirectCount ->
+        for (redirectCount in 0..MAX_REDIRECTS) {
+            check(task.isCancelled()) { "Transferência cancelada" }
             check(current.protocol.equals("https", ignoreCase = true)) {
                 "A transferência só aceita HTTPS."
             }
@@ -353,9 +356,9 @@ class ModelTransferManager(context: Context) {
                     throw IOException("Demasiados redireccionamentos durante a transferência.")
                 }
                 current = URL(current, location)
-                continue
+            } else {
+                return connection
             }
-            return connection
         }
         throw IOException("Não foi possível abrir a transferência.")
     }
@@ -375,6 +378,11 @@ class ModelTransferManager(context: Context) {
             }
         }
         return totalBytes to digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun update(task: TransferTask, snapshot: ModelTransferSnapshot) {
+        task.update(snapshot)
+        publish(snapshot)
     }
 
     private fun publish(snapshot: ModelTransferSnapshot) {
@@ -406,8 +414,6 @@ class ModelTransferManager(context: Context) {
             snapshot = next
         }
     }
-
-    private class TransferCancelledException : IOException()
 
     companion object {
         private const val BUFFER_SIZE = 128 * 1024
