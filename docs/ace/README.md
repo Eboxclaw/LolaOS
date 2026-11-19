@@ -40,9 +40,15 @@ Implemented Android application shell:
 - reads the canonical `models/catalog.v1.json` asset and displays the pinned LFM3 Q4_K_M catalogue entry;
 - reports backend/model/download readiness honestly rather than simulating inference.
 
+Implemented Android model management:
+- app-private staging and revision directories;
+- HTTP Range resume, cancellation and transfer progress;
+- streaming SHA-256 verification before atomic installation;
+- an atomic installed-model registry and background-thread deletion.
+
 Not implemented yet:
-- Android model download/resume and app-private model store;
-- persistent model registry and conversation database;
+- foreground/background transfer guarantees, retry policy and device-level transfer tests;
+- persistent conversations and queryable model registry;
 - reference inference backend, LOLA Native Engine and Android FFI bridge;
 - Pixel device validation, golden inference outputs and performance/thermal measurements.
 
