@@ -43,8 +43,12 @@ class ModelStore(context: Context) {
 
     @Synchronized
     fun installedRecord(model: ModelArtifactSummary): InstalledModelRecord? {
+        validatePathSegments(model)
         val record = readRegistry()[model.id] ?: return null
-        if (record.revision != model.revision || record.sha256 != model.sha256) return null
+        if (record.revision != model.revision ||
+            record.fileName != model.fileName ||
+            record.sha256 != model.sha256
+        ) return null
         val file = destinationFile(model)
         return record.takeIf { file.isFile && file.length() == it.sizeBytes && it.sizeBytes > 0L }
     }
@@ -107,6 +111,7 @@ class ModelStore(context: Context) {
 
     @Synchronized
     fun deleteInstalled(model: ModelArtifactSummary): Boolean {
+        validatePathSegments(model)
         val records = readRegistry()
         val modelDirectory = safeChild(root, model.id)
         var removedAnything = false
@@ -142,6 +147,9 @@ class ModelStore(context: Context) {
 
         return file.bufferedReader(Charsets.UTF_8).use { reader ->
             val rootJson = JSONObject(reader.readText())
+            require(rootJson.optInt("schema_version", -1) == 1) {
+                "Unsupported installed-model registry schema"
+            }
             val entries = rootJson.optJSONArray("models") ?: JSONArray()
             buildMap {
                 for (index in 0 until entries.length()) {
