@@ -36,6 +36,21 @@ This is intentionally conservative. The build must remain runnable on the select
 - Generated text is streamed through a Kotlin callback flow. A bounded-by-output-budget queue prevents token chunks from being silently dropped when UI rendering is slower than native decode.
 - JNI message strings are converted from UTF-16 to standard UTF-8; JNI Modified UTF-8 must not be passed to the tokenizer.
 
+## Native timing metrics
+
+Each completed or cancelled generation publishes a native timing sample to the backend-neutral diagnostics state:
+
+- **Prompt tokens:** token count after GGUF chat-template rendering and tokenization.
+- **Prefill:** time spent processing prompt batches in llama.cpp. Template rendering and tokenization are excluded from this field.
+- **TTFT:** elapsed time from entry into native generation to the first streamed token callback. It includes JNI message conversion, template rendering, tokenization, prefill and selection/streaming of the first token.
+- **Decode:** elapsed time from the end of prefill to generation end. It includes sampling, token-piece conversion and the JNI streaming callback.
+- **Decode tok/s:** generated tokens divided by the decode window. It is not a GPU/NPU throughput figure.
+- **Total:** time for the native generation call, including prompt preparation, prefill and decode.
+
+All timings use `std::chrono::steady_clock` (monotonic). Cancellation samples report tokens produced up to cancellation. An empty/EOG response has no throughput value. Model-load time is excluded.
+
+These timings support same-device comparisons. They have not yet been collected on a physical Pixel 8 Pro. PSS, CPU frequency, battery and thermal state are not measured by this slice.
+
 ## Safety and limitations
 
 - No tools, file access, network tools, ReAct loop or agent permissions are exposed to the model.
