@@ -3,7 +3,36 @@
 Sequence-only: no dates, no estimates. A slice ships when its exit criteria
 pass. S3 runs in parallel with S4–S7 (it never blocks them).
 
-## Slice map
+## ACE spine (active product line)
+
+The product line is the Android app ([docs/ace](ace/README.md), ADR-042).
+A slice here ships when its acceptance evidence exists — a compile is not
+a slice.
+
+| # | Slice | Status |
+|---|---|---|
+| A0 | Domain separation, repo map, ACE baseline docs | ✅ PRs #1–#3 |
+| A1 | `ace-core` / `ace-inference` / `ace-models` Rust contracts | ✅ PRs #4–#7 |
+| A2 | Compose app shell + pinned model manager | ✅ PRs #8–#10 |
+| A3 | Reference inference + persistent chat on `main` | ✅ PRs #11–#13 |
+| A4 | Native timing metrics (prompt/prefill/TTFT/decode/total) | PR #14 |
+| A5 | **Device truth run**: golden pt-BR suite, TTFT/decode tok/s, PSS, thermal on a physical ARM64 device (non-target device recorded with caveat; Pixel 8 Pro stays the named gate) | queued |
+| A6 | Incremental KV reuse + history compaction (2,048-token cap) | queued |
+| A7 | WorkManager/FGS download guarantee | queued |
+| A8 | Kotlin↔Rust bridge: app served through `ace-inference`/UniFFI, contracts unified (kills the parallel Kotlin/Rust interface duplication) | queued |
+| A9 | LOLA Native Engine adoption harness: same-device A/B vs reference on the golden suite, SB gates (ppl-Δ ≤0.5%, token-identity ≥99.5%, NIA) arbitrate | queued, engine lab feeds it |
+
+**A5 exit:** pinned-seed golden outputs recorded with device provenance ·
+TTFT/prefill/decode-tok/s/peak-PSS/thermal captured per
+[ANDROID_REFERENCE_BACKEND](ace/ANDROID_REFERENCE_BACKEND.md) validation
+steps · airplane-mode chat verified · checklist in
+[ANDROID_POC](ace/ANDROID_POC.md) §7 updated to reflect only evidenced
+items.
+
+## Engine-lab slice map
+
+The `crates/lola-*` workspace spine (ADR-042: engine lab — proven here,
+adopted into ACE only through A9's evidence gates).
 
 | # | Slice | Depends on |
 |---|---|---|

@@ -359,3 +359,23 @@ the same treatment as kernels: numeric storage over JSON (R1), hot maps
 over SQL (R2), precompiled traversals + edge hot-cache (R3), lazy parsing
 (R5), batched UniFFI tool dispatch (R6). Tick non-model total budget:
 < 5 ms p95.
+
+---
+
+*LOLA ACE direction round (2026-11-19, PRs #1–#13; recorded 2026-11-21).
+Full baseline: docs/ace/README.md.*
+
+**ADR-042 — LOLA is ACE first: Android-first local AI app; the Rust
+trading workspace becomes the engine lab.** The product surface is the
+Android application (`android/`, `ai.lola.ace`) running LFM3-1.7B locally
+through a backend-neutral inference contract, served first by a pinned
+llama.cpp CPU reference backend. The native engine **earns adoption
+through same-device benchmarks** (golden outputs + ppl-Δ/NIA gates vs the
+reference on identical prompts) — never by assertion (ANDROID_POC §5).
+The `crates/lola-*` workspace (harness, memory, nano-RIPL engine, SB
+quality gates) is retained in full as the **engine lab**: it keeps its own
+slice/fruit spine and benchmarks; the Hyperliquid trading vertical it
+targets is not an active ACE surface. Nothing is deleted; anything is
+adoptable only through ACE's evidence gates. First model is LFM3-only
+(LFM Open License review remains a blocking gate before any
+distribution). ACE = Adaptive Cognitive Execution.
