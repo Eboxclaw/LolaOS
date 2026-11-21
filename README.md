@@ -1,56 +1,74 @@
-# LOLA OS
+# LOLA ACE
 
-A decision-first, edge-first agentic operating system for trading. One Rust
-process, no sidecars, mobile constraints respected from day one.
+**ACE — Adaptive Cognitive Execution.** An Android-first, local-first AI
+application and execution runtime. The first vertical slice is LFM3-1.7B
+text streaming on a phone, on-device, with honest measurements.
 
-> Don't solve the same problem twice. Retrieve what is known, decide
-> deterministically when possible, spend model inference only where it
-> creates value, record everything, improve from outcomes.
+> A document, type contract or successful compile is not evidence that a
+> model runs. Evidence is a golden output on hardware and a measured
+> number. — [docs/ace](docs/ace/README.md)
 
-**Architecture & kernel:** [RFC-002 — Architecture](docs/RFC-002.md) ·
-[HARNESS — the OS kernel](docs/HARNESS.md) ·
-[ROUTER — pass-forward reference tables](docs/ROUTER.md)
+**ACE documents:** [ACE README — direction & status](docs/ace/README.md) ·
+[ARCHITECTURE](docs/ace/ARCHITECTURE.md) ·
+[INFERENCE_CONTRACT](docs/ace/INFERENCE_CONTRACT.md) ·
+[ANDROID_POC + acceptance checklist](docs/ace/ANDROID_POC.md) ·
+[ANDROID_REFERENCE_BACKEND](docs/ace/ANDROID_REFERENCE_BACKEND.md) ·
+[BRAND_IDENTITY](docs/ace/BRAND_IDENTITY.md)
 
-**Memory & agent:** [MEMORY — storage, knowledge graph, retrieval](docs/MEMORY.md) ·
-[PIPELINE — the recall spine, budgeted](docs/PIPELINE.md) ·
-[CONTEXT — discipline, skills, personality, improvement](docs/CONTEXT.md) ·
-[TOOLS — categorized native tool layer](docs/TOOLS.md)
+## What exists now
 
-**Inference & mobile:** [ENGINE — our LFM3-specialized engine](docs/ENGINE.md) ·
-[NANO_RIPL — model pairs, residency, compute tiers](docs/NANO_RIPL.md) ·
-[MOBILE_FIRST — deployment, budgets, de-risking](docs/MOBILE_FIRST.md)
+- **`android/`** — Kotlin/Compose app (`ai.lola.ace`): Conversas, Modelos,
+  Diagnóstico. Pinned model catalogue (`models/catalog.v1.json`), resumable
+  verified downloads, private SQLite chat history, streaming local inference
+  through a **backend-neutral Kotlin contract** currently served by a
+  pinned llama.cpp CPU reference backend (`b11960`). No simulated output.
+- **`crates/ace-*`** — Rust contracts: `ace-core` (execution budgets,
+  Decision/Streaming pipelines, cooperative cancellation), `ace-inference`
+  (backend-neutral model/session/generation contract), `ace-models`
+  (catalogue validation, revision pinning, streaming SHA-256, lifecycle).
+  Contracts only — not yet wired into the app (the Kotlin↔Rust bridge is a
+  queued slice).
+- **Golden suite + device harness** — `evals/ace/` (fixed pt-BR prompt set,
+  capture helper) for the on-device validation sequence.
 
-**Process:** [ROADMAP — slices & exit criteria](docs/ROADMAP.md) ·
-[DECISIONS — ADR log 001–037](docs/DECISIONS.md) ·
-[RESEARCH — filtered ledger, LFM-vertical](docs/RESEARCH.md) ·
-[LORD — the interface & mascot](docs/LORD.md) ·
-[OPTIMIZATIONS — benchmark-gated fruits](docs/OPTIMIZATIONS.md) ·
-[LIQUID — deep dive & positioning](docs/LIQUID.md) ·
-[BENCHMARKS — recorded numbers vs budgets](docs/BENCHMARKS.md)
+**Not yet validated:** physical-device golden outputs, TTFT/prefill/decode,
+PSS/thermal. The reference backend is not the LOLA Native Engine; the native
+engine must earn adoption through same-device benchmarks
+([ANDROID_POC](docs/ace/ANDROID_POC.md) §5).
 
-## Status
+## Engine lab (legacy workspace)
 
-**S1 — Kernel harness** (see [ROADMAP](docs/ROADMAP.md)): the full
-decision loop runs end-to-end on synthetic bars — features → signature →
-momentum strategy → 15-check risk → idempotent paper fills → ledger,
-with crash-recovery (replays never double-fill) and criterion benchmarks
-(full tick 169 µs; see [BENCHMARKS](docs/BENCHMARKS.md)). No model in the
-path yet — that is S2 (oracle bring-up) and S3 (our engine, K0–K9).
+The `crates/lola-*` Rust workspace — harness kernel, decision ledger,
+lola-memory (SQLite/graph/kNN), and the **nano-RIPL LFM3 engine** (own GGUF
+reader, NEON kernels, q8_0 KV, quality gates: ppl-Δ, NIA, token-identity) —
+is retained in full as the **engine lab**: the bench where LOLA Native Engine
+kernels and quality gates are built and proven before any adoption into ACE.
+It is developed, tested and benchmarked on its own spine
+([ROADMAP](docs/ROADMAP.md) S-slices, F-fruits); nothing in it is claimed as
+a shipping product surface.
+
+- [ENGINE — our LFM3-specialized engine](docs/ENGINE.md) ·
+  [NANO_RIPL — model pairs, residency, compute tiers](docs/NANO_RIPL.md) ·
+  [OPTIMIZATIONS](docs/OPTIMIZATIONS.md) ·
+  [BENCHMARKS — recorded numbers vs budgets](docs/BENCHMARKS.md)
+- Kernel & memory docs ([HARNESS](docs/HARNESS.md),
+  [MEMORY](docs/MEMORY.md), [PIPELINE](docs/PIPELINE.md),
+  [ROUTER](docs/ROUTER.md)) describe the lab's decision-loop lineage; the
+  trading vertical (Hyperliquid) they target is **not** an active ACE
+  surface.
 
 ## Quickstart
 
 ```bash
-cargo run -p lola-cli -- doctor        # validate config + migrations on a scratch DB
-cargo run -p lola-cli -- migrate       # apply migrations to data/lola.db
+# Android app (CI parity: Gradle 9.5.0, NDK 29.0.13113456, CMake 3.31.6)
+cd android && gradle :app:testDebugUnitTest :app:assembleDebug
+
+# Engine lab
 cargo test --all
 ```
 
-## Scope guardrails (v0.1)
+## Process
 
-Hyperliquid only (testnet). Paper → testnet execution; mainnet arrives via an
-evidence-gated leverage ladder. Model **pairs per profile** (ADR-017):
-laptop = omni pair (d1-Omni-2B + LFM3-Omni-2B), constrained = text pair —
-same two slots. Tier-1 compute only (Rust CPU + Vulkan/wgpu). Key
-management and UI/UX are explicitly carved out to separate discussions —
-see [docs/KEY_MANAGEMENT.md](docs/KEY_MANAGEMENT.md) and
-[docs/UI_UX.md](docs/UI_UX.md).
+[ROADMAP — slices & exit criteria](docs/ROADMAP.md) ·
+[DECISIONS — ADR log](docs/DECISIONS.md) ·
+[RESEARCH](docs/RESEARCH.md) · [LIQUID — positioning deep-dive](docs/LIQUID.md)
