@@ -1,0 +1,99 @@
+{
+  "set_id": "golden-prompts-pt-v1",
+  "schema_version": 1,
+  "provenance": "hand-authored fixed pt-BR prompt suite for on-device reference-backend validation (docs/ace/ANDROID_REFERENCE_BACKEND.md, validation steps 3-7)",
+  "run_config": {
+    "model_id": "liquidai.lfm3-1.7b.gguf.q4_k_m",
+    "model_revision": "b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf",
+    "model_sha256": "3793e1e6e2266919d6e015287221b41100175a98eddaba92e111aed3b05c93c4",
+    "backend": "llama.cpp reference b11960 (8642541b255bfb5dc39cd351a178be09013a55d6), CPU-only arm64-v8a",
+    "sampler": {
+      "temperature": 0.1,
+      "top_k": 50,
+      "repeat_penalty": 1.1,
+      "seed": 42
+    },
+    "context_tokens": 2048,
+    "max_output_tokens": 256,
+    "language": "pt-BR",
+    "protocol": "each case runs in its own fresh conversation unless the case declares turns; repeat-generation stability is checked by re-running case apresentacao-curta and comparing byte-identical output under the pinned seed"
+  },
+  "cases": [
+    {
+      "id": "apresentacao-curta",
+      "purpose": "baseline single-turn generation, streaming and completion",
+      "turns": [
+        { "role": "user", "content": "Apresente-se em uma frase." }
+      ],
+      "expected_behavior": "one coherent pt-BR sentence; also used as the repeat-generation stability probe"
+    },
+    {
+      "id": "factual-uma-palavra",
+      "purpose": "short factual answer and instruction obedience",
+      "turns": [
+        { "role": "user", "content": "Qual é a capital de Portugal? Responda em uma palavra." }
+      ],
+      "expected_behavior": "answer contains Lisbon; a longer answer still passes, wrong capital is a quality datum, not a harness failure"
+    },
+    {
+      "id": "instrucao-tres-itens",
+      "purpose": "instruction-following with an explicit output format",
+      "turns": [
+        { "role": "user", "content": "Liste exatamente três benefícios de executar modelos de linguagem localmente no celular. Use três itens numerados." }
+      ],
+      "expected_behavior": "numbered list with three items in pt-BR"
+    },
+    {
+      "id": "aritmetica-simples",
+      "purpose": "numeric reliability datum for the 1.7B class",
+      "turns": [
+        { "role": "user", "content": "Quanto é 17 × 24? Responda apenas com o número." }
+      ],
+      "expected_behavior": "408; a miss is recorded as a quality datum"
+    },
+    {
+      "id": "memoria-multi-turn",
+      "purpose": "conversation-state handling across turns",
+      "turns": [
+        { "role": "user", "content": "Guarde esta informação: meu app favorito se chama LOLA e roda sem internet." },
+        { "role": "assistant", "content": "as generated on device in turn 1; not hand-authored" },
+        { "role": "user", "content": "Qual é o nome do meu app favorito e qual a principal característica dele?" }
+      ],
+      "protocol_note": "send turn 1, wait for the model's real streamed reply, then send turn 2 in the same conversation; the declared assistant turn documents the protocol, not fixed content",
+      "expected_behavior": "second answer names LOLA and offline capability"
+    },
+    {
+      "id": "contexto-longo",
+      "purpose": "long-context probe inside the 2,048-token budget",
+      "turns": [
+        { "role": "user", "content": "Leia o parágrafo a seguir e depois responda a pergunta final.\n\nO estado do Tocantins, criado em 1988, é o mais novo do Brasil. Sua capital, Palmas, foi planejada e inaugurada no geográfico centro do estado, às margens do rio Tocantins. A economia local combina agroindústria de grãos, pecuária de corte e um setor de serviços em expansão sustentado pela administração pública estadual. O jalapão, região de cerrado com dunas douradas, fervedouros e cachoeiras, concentra o turismo de natureza que se tornou a marca registrada do estado nos últimos quinze anos. A temperatura média anual supera os vinte e seis graus, com dois períodos bem definidos: chuvoso de outubro a abril e seco de maio a setembro. A vegetação dominante é o cerrado, com matas de galeria ao longo dos rios e ilhas de mata seca em alguns pontos do planalto. A população do estado ultrapassa um milhão e quatrocentos mil habitantes, com concentração em Palmas, Araguaína e Gurupi. A cultura regional reflete a mistura de tradições do norte, do nordeste e do centro-oeste, visível na culinária, nas festas juninas e no folclore das cavalhadas. A infraestrutura de energia destaca-se pela usina hidrelétrica de Peixe Angical no rio Tocantins, que além de gerar energia forma um lago usado para pesca esportiva e lazer. As universidades públicas, incluindo a Universidade Federal do Tocantins, expandiram os cursos de engenharia e computação na última década, mudando o perfil dos jovens que antes migravam para Brasília ou Goiânia em busca de formação técnica. O comércio exterior do estado cresceu com a exportação de soja e carne pelo porto de Itaqui, no Maranhão, escoada pela ferrovia Norte-Sul, que corta o estado de sul a norte e reduz o custo logístico dos grãos. Os municípios do interior ainda enfrentam desafios de conectividade e atenção básica de saúde, temas recorrentes nos planos de governo estaduais. O turismo científico começa a ser explorado com a observação de aves endêmicas do cerrado e as trilhas monitoradas do parque estadual do Jalapão. A identidade tocantinense constrói-se sobre este equilíbrio entre a modernização agroindustrial e a preservação de um cerrado que segue sendo o maior bioma exclusivamente brasileiro ameaçado pela expansão agrícola.\n\nPergunta: qual é a ferrovia mencionada no texto e que função ela exerce?" }
+      ],
+      "expected_behavior": "answer names the Norte-Sul railway and its grain-export logistics role; prompt must stay inside the 2,048-token context budget (recorded promptTokens)"
+    },
+    {
+      "id": "diacriticos-unicode",
+      "purpose": "UTF-16/UTF-8 JNI conversion probe with heavy pt-BR diacritics",
+      "turns": [
+        { "role": "user", "content": "Escreva uma frase curta usando obrigatoriamente as palavras: coração, ação, pinguim, paraíso, transporte." }
+      ],
+      "expected_behavior": "all five words present with correct diacritics; mojibake is a harness failure"
+    },
+    {
+      "id": "sem-ferramentas-hora",
+      "purpose": "honest-limitation probe: the reference backend has no tools or clock",
+      "turns": [
+        { "role": "user", "content": "Que horas são agora no seu fuso horário?" }
+      ],
+      "expected_behavior": "the model cannot know the time; output recorded verbatim as the honesty datum"
+    },
+    {
+      "id": "geracao-longa-cancelamento",
+      "purpose": "cancellation-under-decode probe; output is NOT golden-compared",
+      "turns": [
+        { "role": "user", "content": "Escreva um ensaio de trezentas palavras sobre a história dos computadores pessoais." }
+      ],
+      "protocol_note": "press Stop after the first streamed sentence; verify partial output persists in the conversation and metrics report partial token count",
+      "expected_behavior": "generation stops promptly; partial text persisted; Diagnostics shows promptTokens and generatedTokens>0 with totalMillis well under an uncapped run"
+    }
+  ]
+}
