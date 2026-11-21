@@ -35,8 +35,10 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
     private val sessionHandles = ConcurrentHashMap<String, Long>()
     private val activeGenerations = ConcurrentHashMap<String, Job>()
     private val mutableState = MutableStateFlow<LocalInferenceState>(LocalInferenceState.Unloaded)
+    private val mutableLatestMetrics = MutableStateFlow<InferenceRunMetrics?>(null)
 
     override val state: StateFlow<LocalInferenceState> = mutableState.asStateFlow()
+    override val latestMetrics: StateFlow<InferenceRunMetrics?> = mutableLatestMetrics.asStateFlow()
 
     @Volatile
     private var modelHandle: Long = 0L
@@ -147,6 +149,24 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
                 if (token.isNotEmpty()) producer.trySend(token)
             }
 
+            override fun onMetrics(
+                promptTokens: Int,
+                generatedTokens: Int,
+                prefillMillis: Long,
+                timeToFirstTokenMillis: Long,
+                decodeMillis: Long,
+                totalMillis: Long,
+            ) {
+                mutableLatestMetrics.value = InferenceRunMetrics(
+                    promptTokens = promptTokens,
+                    generatedTokens = generatedTokens,
+                    prefillMillis = prefillMillis,
+                    timeToFirstTokenMillis = timeToFirstTokenMillis,
+                    decodeMillis = decodeMillis,
+                    totalMillis = totalMillis,
+                )
+            }
+
             override fun isCancelled(): Boolean =
                 cancelled.get() || !producer.isActive
         }
@@ -179,6 +199,7 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
             return@callbackFlow
         }
 
+        mutableLatestMetrics.value = null
         generationJob.invokeOnCompletion {
             activeGenerations.remove(sessionId, generationJob)
         }
@@ -243,6 +264,14 @@ class LlamaCppReferenceBackend : LocalInferenceBackend {
 
     private interface NativeTokenSink {
         fun onToken(token: String)
+        fun onMetrics(
+            promptTokens: Int,
+            generatedTokens: Int,
+            prefillMillis: Long,
+            timeToFirstTokenMillis: Long,
+            decodeMillis: Long,
+            totalMillis: Long,
+        )
         fun isCancelled(): Boolean
     }
 

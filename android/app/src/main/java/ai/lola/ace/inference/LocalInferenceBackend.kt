@@ -16,6 +16,31 @@ data class InferenceChatMessage(
     }
 }
 
+data class InferenceRunMetrics(
+    val promptTokens: Int,
+    val generatedTokens: Int,
+    val prefillMillis: Long,
+    val timeToFirstTokenMillis: Long,
+    val decodeMillis: Long,
+    val totalMillis: Long,
+) {
+    init {
+        require(promptTokens >= 0)
+        require(generatedTokens >= 0)
+        require(prefillMillis >= 0L)
+        require(timeToFirstTokenMillis >= 0L)
+        require(decodeMillis >= 0L)
+        require(totalMillis >= 0L)
+    }
+
+    val decodeTokensPerSecond: Double?
+        get() = if (decodeMillis > 0L && generatedTokens > 0) {
+            generatedTokens * 1000.0 / decodeMillis.toDouble()
+        } else {
+            null
+        }
+}
+
 data class ReferenceSessionConfig(
     val contextTokens: Int = 2048,
     val threads: Int = 4,
@@ -46,6 +71,7 @@ sealed interface LocalInferenceState {
  */
 interface LocalInferenceBackend {
     val state: StateFlow<LocalInferenceState>
+    val latestMetrics: StateFlow<InferenceRunMetrics?>
 
     suspend fun loadModel(modelFile: File)
     suspend fun openSession(sessionId: String, config: ReferenceSessionConfig = ReferenceSessionConfig())
