@@ -1,6 +1,21 @@
 package ai.lola.ace.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -8,9 +23,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -18,6 +37,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -34,10 +55,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ai.lola.ace.R
 import ai.lola.ace.data.ChatRepository
 import ai.lola.ace.data.ChatRepositoryProvider
 import ai.lola.ace.data.ModelArtifactSummary
@@ -47,6 +77,8 @@ import ai.lola.ace.inference.InferenceChatMessage
 import ai.lola.ace.inference.LocalInferenceBackend
 import ai.lola.ace.inference.LocalInferenceState
 import ai.lola.ace.inference.ReferenceSessionConfig
+import ai.lola.ace.ui.theme.LolaSpacing
+import ai.lola.ace.ui.theme.LolaStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -72,6 +104,7 @@ fun ChatScreen(
     val context = LocalContext.current
     val repository = remember(context) { ChatRepositoryProvider.get(context) }
     val runtimeState by backend.state.collectAsState()
+    val latestMetrics by backend.latestMetrics.collectAsState()
     val scope = rememberCoroutineScope()
     val chatLines = remember { mutableStateListOf<ChatLine>() }
     val listState = rememberLazyListState()
@@ -375,18 +408,18 @@ fun ChatScreen(
             TextButton(
                 onClick = ::createNewConversation,
                 enabled = !generating && !historyLoading && !conversationLoading,
-            ) { Text("Nova conversa") }
+            ) { Text(stringResource(R.string.chat_new)) }
             TextButton(
                 onClick = { showDeleteConfirmation = true },
                 enabled = currentConversationId != null &&
                     !generating && !historyLoading && !conversationLoading,
-            ) { Text("Apagar") }
+            ) { Text(stringResource(R.string.action_delete)) }
             Spacer(modifier = Modifier.weight(1f))
             Column {
                 TextButton(
                     onClick = { showHistory = true },
                     enabled = conversations.isNotEmpty() && !historyLoading && !generating && !conversationLoading,
-                ) { Text("Histórico (${conversations.size})") }
+                ) { Text(stringResource(R.string.chat_history, conversations.size)) }
                 DropdownMenu(
                     expanded = showHistory,
                     onDismissRequest = { showHistory = false },
@@ -409,82 +442,96 @@ fun ChatScreen(
         if (showDeleteConfirmation) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirmation = false },
-                title = { Text("Apagar conversa?") },
+                title = { Text(stringResource(R.string.chat_delete_title)) },
                 text = {
-                    Text("Esta conversa e as respectivas mensagens serão removidas deste dispositivo. Os modelos instalados não serão afectados.")
+                    Text(stringResource(R.string.chat_delete_body))
                 },
                 confirmButton = {
                     TextButton(onClick = ::deleteCurrentConversation) {
-                        Text("Apagar")
+                        Text(stringResource(R.string.action_delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteConfirmation = false }) {
-                        Text("Cancelar")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 },
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(LolaSpacing.xs)) {
             Text(
-                text = "CONVERSA LOCAL",
+                text = stringResource(R.string.chat_overline),
                 color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelSmall,
             )
             Text(
                 text = currentConversationTitle,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = model?.displayName ?: "Nenhum modelo no catálogo",
+                text = model?.displayName ?: stringResource(R.string.chat_no_model),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = when (runtimeState) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val (dotColor, statusText) = when (runtimeState) {
                     LocalInferenceState.Unloaded -> if (installedFile == null) {
-                        "Descarrega e verifica o modelo na biblioteca para começar."
+                        LolaStatus.Info to stringResource(R.string.chat_status_download_needed)
                     } else {
-                        "Modelo instalado e verificado. Ainda não está carregado na memória."
+                        LolaStatus.Warning to stringResource(R.string.chat_status_installed)
                     }
-                    LocalInferenceState.Loading -> "A carregar o modelo na memória do dispositivo…"
+                    LocalInferenceState.Loading -> LolaStatus.Warning to
+                        stringResource(R.string.chat_status_loading)
                     is LocalInferenceState.Loaded -> if (sessionReady) {
-                        "Motor de referência activo · CPU ARM64"
+                        LolaStatus.Success to stringResource(R.string.chat_status_active)
                     } else {
-                        "Modelo carregado · a preparar a sessão"
+                        LolaStatus.Warning to stringResource(R.string.chat_status_session)
                     }
-                    is LocalInferenceState.Error -> "O motor não conseguiu carregar o modelo."
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
+                    is LocalInferenceState.Error -> MaterialTheme.colorScheme.error to
+                        stringResource(R.string.chat_status_failed)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(dotColor, CircleShape),
+                )
+                Text(
+                    text = statusText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
 
         when (runtimeState) {
             LocalInferenceState.Unloaded -> {
                 if (!catalogueAvailable || model == null) {
-                    Text("Não existe um modelo disponível no catálogo.")
+                    Text(stringResource(R.string.chat_no_model))
                 } else if (installedFile == null) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         ),
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(LolaSpacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
                         ) {
-                            Text("O LFM3 ainda não está instalado.")
+                            Text(stringResource(R.string.chat_not_installed_title))
                             Text(
-                                "Abre a biblioteca de modelos, descarrega o GGUF e deixa a LOLA verificar o SHA-256.",
+                                stringResource(R.string.chat_not_installed_body),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                             )
-                            Button(onClick = onOpenModels) { Text("Abrir biblioteca") }
+                            Button(onClick = onOpenModels) {
+                                Text(stringResource(R.string.chat_open_library))
+                            }
                         }
                     }
                 } else {
@@ -492,37 +539,27 @@ fun ChatScreen(
                         onClick = ::loadModel,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Carregar LFM3 no dispositivo")
+                        Text(stringResource(R.string.chat_load_model))
                     }
                 }
             }
             LocalInferenceState.Loading -> {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(LolaSpacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    CircularProgressIndicator()
-                    Text("A inicializar o backend CPU…")
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.5.dp,
+                    )
+                    Text(stringResource(R.string.chat_loading_backend))
                 }
             }
             is LocalInferenceState.Loaded -> {
-                if (sessionReady) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(
-                            onClick = { backend.cancelGeneration(CHAT_SESSION_ID) },
-                            enabled = generating,
-                        ) { Text("Parar geração") }
-                        TextButton(
-                            onClick = ::unloadModel,
-                            enabled = !generating,
-                        ) { Text("Libertar memória") }
-                    }
-                } else {
+                if (!sessionReady) {
                     Text(
-                        text = localError ?: "A abrir sessão de conversa…",
+                        text = localError ?: stringResource(R.string.chat_opening_session),
                         color = if (localError != null) {
                             MaterialTheme.colorScheme.error
                         } else {
@@ -532,13 +569,13 @@ fun ChatScreen(
                     if (localError != null) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
                         ) {
                             Button(
                                 onClick = { scope.launch { ensureChatSession() } },
-                            ) { Text("Tentar abrir sessão") }
+                            ) { Text(stringResource(R.string.chat_retry_session)) }
                             TextButton(onClick = ::unloadModel) {
-                                Text("Libertar memória")
+                                Text(stringResource(R.string.chat_free_memory))
                             }
                         }
                     }
@@ -547,19 +584,22 @@ fun ChatScreen(
             is LocalInferenceState.Error -> {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                     ),
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(LolaSpacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
                     ) {
                         Text(
                             text = (runtimeState as LocalInferenceState.Error).message,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
-                        TextButton(onClick = ::loadModel) { Text("Tentar carregar novamente") }
+                        TextButton(onClick = ::loadModel) {
+                            Text(stringResource(R.string.chat_retry_load))
+                        }
                     }
                 }
             }
@@ -581,52 +621,103 @@ fun ChatScreen(
             contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            itemsIndexed(chatLines) { _, line ->
-                ChatMessageBubble(line)
+            itemsIndexed(chatLines) { index, line ->
+                ChatMessageBubble(
+                    line = line,
+                    isStreaming = generating && index == chatLines.lastIndex && line.role == "assistant",
+                )
             }
             if (chatLines.isEmpty()) {
                 item {
-                    Text(
-                        text = if (runtimeState is LocalInferenceState.Loaded) {
-                            "O modelo está pronto. Envia uma mensagem para começar. A primeira resposta pode demorar enquanto o motor prepara o contexto."
-                        } else {
-                            "As conversas ficam guardadas neste dispositivo. Carrega o modelo para continuar a conversar."
-                        },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = LolaSpacing.xxl),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.chat_privacy_note),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = if (runtimeState is LocalInferenceState.Loaded) {
+                                stringResource(R.string.chat_empty_ready)
+                            } else {
+                                stringResource(R.string.chat_empty_idle)
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
                 }
             }
         }
 
         if (runtimeState is LocalInferenceState.Loaded) {
+            val sendLabel = stringResource(R.string.action_send)
+            val stopLabel = stringResource(R.string.action_stop)
+            latestMetrics?.let { metrics ->
+                Text(
+                    text = formatMetricsFootnote(metrics),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
+                verticalAlignment = Alignment.Bottom,
             ) {
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
                     enabled = sessionReady && !generating && !conversationLoading && currentConversationId != null,
-                    placeholder = { Text("Escreve uma mensagem…") },
+                    placeholder = { Text(stringResource(R.string.chat_input_hint)) },
                     maxLines = 4,
+                    shape = RoundedCornerShape(24.dp),
                 )
-                Button(
-                    onClick = ::sendMessage,
-                    enabled = sessionReady && !generating && !conversationLoading && input.isNotBlank() && currentConversationId != null,
-                ) {
-                    Text("Enviar")
+                if (generating) {
+                    IconButton(
+                        onClick = { backend.cancelGeneration(CHAT_SESSION_ID) },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .semantics { contentDescription = stopLabel },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_stop),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = ::sendMessage,
+                        enabled = sessionReady && !generating && !conversationLoading &&
+                            input.isNotBlank() && currentConversationId != null,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .semantics { contentDescription = sendLabel },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_send),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
             Text(
-                text = "Motor de referência llama.cpp · CPU · contexto 2K · máximo 256 tokens por resposta · histórico guardado localmente",
+                text = stringResource(R.string.chat_engine_footnote),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )
         } else {
             Text(
-                text = "O histórico continua disponível sem o modelo carregado. Carrega o LFM3 para enviar novas mensagens.",
+                text = stringResource(R.string.chat_history_footnote),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -634,37 +725,177 @@ fun ChatScreen(
     }
 }
 
+private fun formatMillisValue(millis: Long): String =
+    if (millis >= 1_000) {
+        String.format(java.util.Locale.ROOT, "%.1fs", millis / 1000.0)
+    } else {
+        "$millis ms"
+    }
+
+private fun formatMetricsFootnote(metrics: ai.lola.ace.inference.InferenceRunMetrics): String {
+    val tokens = "${metrics.promptTokens} → ${metrics.generatedTokens} tok"
+    val ttft = "TTFT ${formatMillisValue(metrics.timeToFirstTokenMillis)}"
+    val decode = metrics.decodeTokensPerSecond
+        ?.let { String.format(java.util.Locale.ROOT, "%.2f tok/s", it) }
+        ?: "—"
+    return "$tokens · $ttft · $decode"
+}
+
 @Composable
-private fun ChatMessageBubble(line: ChatLine) {
+private fun ChatMessageBubble(line: ChatLine, isStreaming: Boolean) {
     val isUser = line.role == "user"
-    Card(
+    val visible = remember { MutableTransitionState(false) }
+    LaunchedEffect(Unit) { visible.targetState = true }
+
+    Box(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isUser) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-        ),
+        contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
-        Column(
-            modifier = Modifier.padding(13.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        androidx.compose.animation.AnimatedVisibility(
+            visibleState = visible,
+            enter = fadeIn() + slideInVertically(
+                initialOffsetY = { it / 6 },
+                animationSpec = tween(180, easing = FastOutSlowInEasing),
+            ),
         ) {
-            Text(
-                text = if (isUser) "TU" else "LOLA",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = line.text.ifEmpty { "…" },
-                color = if (isUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
+            Column(
+                modifier = Modifier.widthIn(max = 312.dp),
+                verticalArrangement = Arrangement.spacedBy(LolaSpacing.xs),
+                horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+            ) {
+                if (!isUser) {
+                    Text(
+                        text = stringResource(R.string.chat_role_lola),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (isUser) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
+                            shape = if (isUser) {
+                                RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+                            } else {
+                                RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
+                            },
+                        )
+                        .padding(horizontal = LolaSpacing.lg, vertical = LolaSpacing.md),
+                ) {
+                    if (isUser) {
+                        Text(
+                            text = line.text,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        AssistantBody(text = line.text, isStreaming = isStreaming)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Splits the reference model's raw output at the literal `</think>` marker:
+ * reasoning is collapsed behind a disclosure, the answer renders as the body.
+ * While streaming with no marker yet, a typing indicator heads the bubble.
+ */
+@Composable
+private fun AssistantBody(text: String, isStreaming: Boolean) {
+    val marker = "</think>"
+    val markerIndex = text.indexOf(marker)
+    var expanded by rememberSaveable(text.isEmpty()) { mutableStateOf(false) }
+    val reasoning: String
+    val answer: String
+    if (markerIndex >= 0) {
+        reasoning = text.substring(0, markerIndex).trim()
+        answer = text.substring(markerIndex + marker.length).trim()
+    } else {
+        reasoning = ""
+        answer = text
+    }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(150),
+        label = "chevron",
+    )
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(LolaSpacing.sm),
+        modifier = Modifier.animateContentSize(),
+    ) {
+        if (reasoning.isNotEmpty()) {
+            Row(
+                modifier = Modifier.clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(LolaSpacing.xs),
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_reasoning),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_expand),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .rotate(rotation),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (expanded) {
+                Text(
+                    text = reasoning,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        when {
+            answer.isNotEmpty() -> Text(
+                text = answer,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
+            )
+            isStreaming && reasoning.isEmpty() -> TypingDots()
+            else -> Text(
+                text = "…",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TypingDots() {
+    val transition = rememberInfiniteTransition(label = "typing")
+    val alpha by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "dot",
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(LolaSpacing.xs)) {
+        repeat(3) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .graphicsLayer { this.alpha = alpha }
+                    .background(
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        CircleShape,
+                    ),
             )
         }
     }
