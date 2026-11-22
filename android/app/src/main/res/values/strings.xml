@@ -45,4 +45,14 @@
     <string name="chat_reasoning">Reasoning</string>
     <string name="chat_role_user">YOU</string>
     <string name="chat_role_lola">LOLA</string>
+
+    <!-- Conversations home -->
+    <string name="home_title">Chats</string>
+    <string name="home_subtitle">Every chat lives on this device</string>
+    <string name="home_loading">Loading chats…</string>
+    <string name="home_empty">No chats yet. Start the first one.</string>
+    <string name="home_group_today">Today</string>
+    <string name="home_group_yesterday">Yesterday</string>
+    <string name="home_group_earlier">Earlier</string>
+    <string name="home_action">All chats</string>
 </resources>
