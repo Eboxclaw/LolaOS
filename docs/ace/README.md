@@ -14,7 +14,7 @@ The first vertical slice is **LFM3-1.7B text streaming** on a Google Pixel 8 Pro
 
 - [Brand identity](BRAND_IDENTITY.md) — official LOLA logo and mascot usage.
 - [Architecture](ARCHITECTURE.md) — runtime components, ownership and execution paths.
-- [Inference contract](INFERENCE_CONTRACT.md) — backend-neutral API, streaming, state and cancellation.
+- [Inference contract](INFERENCE_CONTRACT.md) — backend-neutral API, streaming, state and cancellation.\n- [ADR-043](ADR-043-MEMORY-SKILLS-WORKFLOW-GRAPHS.md) — memory, embeddings/RAG, Agent Skills and typed workflow graphs.
 - [Android POC](ANDROID_POC.md) — app modules, screens, offline acceptance.
 - [Model lifecycle](MODEL_LIFECYCLE.md) — catalogue, downloads, verification, installation and deletion.
 
@@ -56,3 +56,15 @@ Not yet validated:
 See [Android reference backend](ANDROID_REFERENCE_BACKEND.md) and [Android implementation status](ANDROID_IMPLEMENTATION.md) for details.
 
 Implementation readiness must be established by passing CI, device tests, golden outputs and measured performance. A document, type contract or state machine is not evidence that a model can already be downloaded or run.
+
+
+## Foundational intelligence layer — proposed in ADR-043
+
+ACE will keep memory, skills and workflows as separate, composable foundations:
+
+- Memory owns provenance-aware storage, lifecycle, lexical/structured retrieval and optional vector retrieval.
+- Skills follow the Agent Skills open standard and describe reusable capabilities; they do not grant permissions or execute arbitrary code.
+- Workflow Graphs are typed, versioned plans. Decision validates and schedules them; Streaming runs generation nodes and streams output.
+- TurboQuant and FlashMem remain research candidates behind replaceable interfaces and evidence gates.
+
+This ADR is proposed; these capabilities are not yet claimed as implemented in the ACE runtime.
