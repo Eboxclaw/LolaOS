@@ -1,0 +1,153 @@
+{
+  "set_id": "golden-outputs-emulator-v1",
+  "schema_version": 1,
+  "suite": "golden-prompts-pt-v1",
+  "environment": "Android emulator AVD LolaAce_API35 (Pixel 7, API 35, google_apis arm64-v8a, 4 vCPU, 4 GiB RAM, 6 GiB data partition) on Apple-Silicon macOS host; NOT a physical device",
+  "emulator_build": "37.2.7 (16195039, darwin aarch64)",
+  "app_build": "commit bb8990b (fix PR #17 branch on top of main 2328aa5 incl. transfer fix PR #16)",
+  "backend": "llama.cpp reference b11960 (8642541b255bfb5dc39cd351a178be09013a55d6), CPU-only arm64-v8a",
+  "model": "liquidai.lfm3-1.7b.gguf.q4_k_m @ b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf (SHA-256 verified in-app)",
+  "sampler": {
+    "temperature": 0.1,
+    "top_k": 50,
+    "repeat_penalty": 1.1,
+    "seed": 42
+  },
+  "context_tokens": 2048,
+  "max_output_tokens": 256,
+  "date": "2026-11-22",
+  "runs": [
+    {
+      "file": "case1-runA.json",
+      "case": "apresentacao-curta (run A)",
+      "output_sha256": "96d36d8244e45571030833f4d0238726c347df66299421ba9ed66afce84a80cc",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "56 / 100",
+        "TTFT": "34507 ms",
+        "PREFILL": "34494 ms",
+        "DECODE": "1.17 tok/s",
+        "TEMPO TOTAL": "119718 ms"
+      }
+    },
+    {
+      "file": "case2-factual-v2.json",
+      "case": "factual-uma-palavra",
+      "output_sha256": "f066a460a120a9dd51a86919a9fed383c34b400308f83345b52d18956d5e4ffe",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "61 / 73",
+        "TTFT": "35881 ms",
+        "PREFILL": "35866 ms",
+        "DECODE": "1.23 tok/s",
+        "TEMPO TOTAL": "95015 ms"
+      }
+    },
+    {
+      "file": "case3-instrucao.json",
+      "case": "instrucao-tres-itens",
+      "output_sha256": "6a0ebfb249d0f70000746f8be0e7c67933bfe5a5fe7f2766df40cef7d3809af3",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "72 / 256",
+        "TTFT": "42450 ms",
+        "PREFILL": "42439 ms",
+        "DECODE": "1.21 tok/s",
+        "TEMPO TOTAL": "253954 ms"
+      }
+    },
+    {
+      "file": "case4-aritmetica.json",
+      "case": "aritmetica-simples",
+      "output_sha256": "68b39176ff8cfaefea6a8beaf7fd88613bfc9d16f20a95ab3550e24f6fac834f",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "63 / 106",
+        "TTFT": "36996 ms",
+        "PREFILL": "36987 ms",
+        "DECODE": "1.24 tok/s",
+        "TEMPO TOTAL": "122431 ms"
+      }
+    },
+    {
+      "file": "case5-multiturn-t1.json",
+      "case": "memoria-multi-turn (turn 1)",
+      "output_sha256": "4c0ef558c29b9e7ad96f3bb6aecfb0663c29fd1a26cd58077652b05fe67ca36d",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "67 / 141",
+        "TTFT": "39364 ms",
+        "PREFILL": "39357 ms",
+        "DECODE": "1.21 tok/s",
+        "TEMPO TOTAL": "155505 ms"
+      }
+    },
+    {
+      "file": "case5-multiturn-t2.json",
+      "case": "memoria-multi-turn (turn 2)",
+      "output_sha256": "0198c03563b7b125faccdc88852d54eaa2e8f4f022071f762abe0ffeb1c57d15",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "121 / 146",
+        "TTFT": "71798 ms",
+        "PREFILL": "71786 ms",
+        "DECODE": "1.21 tok/s",
+        "TEMPO TOTAL": "192560 ms"
+      }
+    },
+    {
+      "file": "case6-contexto-longo.json",
+      "case": "contexto-longo",
+      "output_sha256": "0328a0c11b80e51bf7b0be2138fc2d35e54edb750a30bf34f38ee84c08b7c3df",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "651 / 256",
+        "TTFT": "633005 ms",
+        "PREFILL": "632987 ms",
+        "DECODE": "0.97 tok/s",
+        "TEMPO TOTAL": "896139 ms"
+      }
+    },
+    {
+      "file": "case7-diacriticos.json",
+      "case": "diacriticos-unicode",
+      "output_sha256": "62245246cbeb12522c652b2ce08ebf02e08a10e3d13b8f3ad897b07682dded5b",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "79 / 256",
+        "TTFT": "46162 ms",
+        "PREFILL": "46154 ms",
+        "DECODE": "1.20 tok/s",
+        "TEMPO TOTAL": "259278 ms"
+      }
+    },
+    {
+      "file": "case8-sem-ferramentas.json",
+      "case": "sem-ferramentas-hora",
+      "output_sha256": "3730a5cdeaccc89fe0f41ff990aeaec919b37cbe7d82df82ad904181bbc792b7",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "58 / 256",
+        "TTFT": "34782 ms",
+        "PREFILL": "34775 ms",
+        "DECODE": "0.88 tok/s",
+        "TEMPO TOTAL": "325453 ms"
+      }
+    },
+    {
+      "file": "case9-cancel.json",
+      "case": "geracao-longa-cancelamento (partial)",
+      "output_sha256": "6c64bc3f195d7d2c09d0330a090433cc9809d7e75a935372b7131ee365e14122",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "68 / 21",
+        "TTFT": "71464 ms",
+        "PREFILL": "71451 ms",
+        "DECODE": "0.67 tok/s",
+        "TEMPO TOTAL": "103012 ms"
+      }
+    },
+    {
+      "file": "case1-runB.json",
+      "case": "apresentacao-curta (run B, stability)",
+      "output_sha256": "96d36d8244e45571030833f4d0238726c347df66299421ba9ed66afce84a80cc",
+      "diagnostics": {
+        "TOKENS DE PROMPT / SAÍDA": "56 / 100",
+        "TTFT": "50264 ms",
+        "PREFILL": "50255 ms",
+        "DECODE": "0.80 tok/s",
+        "TEMPO TOTAL": "175077 ms"
+      }
+    }
+  ]
+}

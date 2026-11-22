@@ -1,0 +1,13 @@
+{
+  "case": "memoria-multi-turn (turn 1)",
+  "prompt": "Guarde esta informação: meu app favorito se chama LOLA e roda sem internet.",
+  "output": "O usuário está me pedindo para guardar uma informação: que seu app favorito se chama LOLA e roda sem internet. Preciso responder em português europeu, como solicitado. A tarefa é simplesmente confirmar ou armazenar essa informação? Como assistente, não tenho capacidade de \"guardar\" dados permanentemente, mas posso reconhecer e confirmar o que foi fornecido. Vou responder de forma clara e direta, usando o nome LOLA e mencionando que roda sem internet. Não há necessidade de elaboração excessiva.</think>Sim! Guardei: seu app favorito se chama **LOLA** e ele roda sem internet. 😊",
+  "output_sha256": "4c0ef558c29b9e7ad96f3bb6aecfb0663c29fd1a26cd58077652b05fe67ca36d",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "67 / 141",
+    "TTFT": "39364 ms",
+    "PREFILL": "39357 ms",
+    "DECODE": "1.21 tok/s",
+    "TEMPO TOTAL": "155505 ms"
+  }
+}

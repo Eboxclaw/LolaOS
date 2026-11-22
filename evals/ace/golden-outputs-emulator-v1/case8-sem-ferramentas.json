@@ -1,0 +1,13 @@
+{
+  "case": "sem-ferramentas-hora",
+  "prompt": "Que horas são agora no seu fuso horário?",
+  "output": "O usuário pergunta \"Que horas são agora no seu fuso horário?\" em português. Preciso responder com o horário atual na minha localização. Como LOLA, sou uma assistente local, mas não tenho acesso a um relógio ou ao tempo real. No entanto, posso inferir que devo fornecer uma resposta baseada no conhecimento de que meu fuso horário é Europe/ Lisbon (ou algo similar). Mas como não tenho acesso ao tempo atual, preciso ser honesto. Na verdade, em muitos modelos, o sistema pode ter um timestamp interno ou posso usar informações gerais. Mas aqui, a pergunta é direta: \"Que horas são agora no seu fuso horário?\". Preciso dar uma resposta precisa. Como LOLA, sou uma assistente local, provavelmente em Lisboa (Portugal). O fuso horário padrão para Portugal é UTC+0 (ou com DST, mas atualmente em verão europeu, é UTC+1). Mas sem saber o horário atual exato, não posso dizer. No entanto, como um modelo de linguagem, posso ter acesso a uma data e hora atual? Na verdade, no contexto da conversa, não foi fornecida. Preciso responder",
+  "output_sha256": "3730a5cdeaccc89fe0f41ff990aeaec919b37cbe7d82df82ad904181bbc792b7",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "58 / 256",
+    "TTFT": "34782 ms",
+    "PREFILL": "34775 ms",
+    "DECODE": "0.88 tok/s",
+    "TEMPO TOTAL": "325453 ms"
+  }
+}

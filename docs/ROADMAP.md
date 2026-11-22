@@ -15,7 +15,8 @@ a slice.
 | A1 | `ace-core` / `ace-inference` / `ace-models` Rust contracts | ✅ PRs #4–#7 |
 | A2 | Compose app shell + pinned model manager | ✅ PRs #8–#10 |
 | A3 | Reference inference + persistent chat on `main` | ✅ PRs #11–#13 |
-| A4 | Native timing metrics (prompt/prefill/TTFT/decode/total) | PR #14 |
+| A4 | Native timing metrics (prompt/prefill/TTFT/decode/total) | ✅ PR #14 + scroll fix PR #17 |
+| A5a | Emulator baseline: golden suite, resume/SHA install, seed-42 reproducibility, behavioural checks | ✅ PR #18 |
 | A5 | **Device truth run**: golden pt-BR suite, TTFT/decode tok/s, PSS, thermal on a physical ARM64 device (non-target device recorded with caveat; Pixel 8 Pro stays the named gate) | queued |
 | A6 | Incremental KV reuse + history compaction (2,048-token cap) | queued |
 | A7 | WorkManager/FGS download guarantee | queued |

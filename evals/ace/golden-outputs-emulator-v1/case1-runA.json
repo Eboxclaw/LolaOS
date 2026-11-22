@@ -1,0 +1,13 @@
+{
+  "case": "apresentacao-curta (run A)",
+  "prompt": "Apresente-se em uma frase.",
+  "output": "O usuário pede para eu me apresentar em uma frase. Como LOLA, a assistente local, preciso responder de forma direta e concisa, em português europeu. A resposta deve incluir meu nome e minha função. Vou criar uma única frase que cubra ambos os pontos: \"Sou LOLA, sua assistente local.\" Isso atende à solicitação de uma frase e estabelece minha identidade.</think>Sou LOLA, sua assistente local.",
+  "output_sha256": "96d36d8244e45571030833f4d0238726c347df66299421ba9ed66afce84a80cc",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "56 / 100",
+    "TTFT": "34507 ms",
+    "PREFILL": "34494 ms",
+    "DECODE": "1.17 tok/s",
+    "TEMPO TOTAL": "119718 ms"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "case": "instrucao-tres-itens",
+  "prompt": "Liste exatamente três benefícios de executar modelos de linguagem localmente no celular. Use três itens numerados.",
+  "output": "We need to list exactly three benefits of running local language models on a mobile device. The user asks in Portuguese: \"Liste exatamente três benefícios de executar modelos de linguagem localmente no celular. Use três itens numerados.\" So we must provide three numbered items, each describing a benefit.\n\nWe should think about advantages of local LLMs (like running them on-device) vs cloud-based ones. Common benefits include: privacy (data stays on device), reduced latency (no network roundtrip), offline functionality, lower bandwidth usage, faster inference, etc. For mobile specifically: maybe better for low connectivity, no need to send data to server, can run locally without internet, improves privacy by not uploading text to servers, and potentially more efficient memory? But we just need three.\n\nLet's craft concise but clear points in Portuguese (European). Use numbered list 1., 2., 3. Ensure exactly three items.\n\nPotential benefits:\n\n1. Privacidade: os dados não são enviados para servidores externos.\n2. Latência reduzida: processamento local sem depender de rede, resposta mais rápida.\n3. Funcionalidade offline: pode operar mesmo sem conexão à internet.\n\nOr maybe \"Menor consumo de energia",
+  "output_sha256": "6a0ebfb249d0f70000746f8be0e7c67933bfe5a5fe7f2766df40cef7d3809af3",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "72 / 256",
+    "TTFT": "42450 ms",
+    "PREFILL": "42439 ms",
+    "DECODE": "1.21 tok/s",
+    "TEMPO TOTAL": "253954 ms"
+  }
+}

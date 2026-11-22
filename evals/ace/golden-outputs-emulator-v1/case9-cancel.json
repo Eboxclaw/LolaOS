@@ -1,0 +1,13 @@
+{
+  "case": "geracao-longa-cancelamento (partial)",
+  "prompt": "Escreva um ensaio de trezentas palavras sobre a história dos computadores pessoais.",
+  "output": "O usuário pede um ensaio de aproximadamente 300 palavras sobre a história dos computadores pessoais",
+  "output_sha256": "6c64bc3f195d7d2c09d0330a090433cc9809d7e75a935372b7131ee365e14122",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "68 / 21",
+    "TTFT": "71464 ms",
+    "PREFILL": "71451 ms",
+    "DECODE": "0.67 tok/s",
+    "TEMPO TOTAL": "103012 ms"
+  }
+}
