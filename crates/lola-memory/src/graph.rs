@@ -189,7 +189,7 @@ pub mod query {
     /// (bounded, stamp-evicted like SP2). The caller invalidates on any
     /// graph write for correctness-critical reads.
     pub struct EdgeHotCache {
-        entries: std::collections::HashMap<String, (Vec<EdgeRow>, u64, Option<i64>)>,
+        entries: std::collections::HashMap<String, (Vec<EdgeRow>, u64, i64, Option<i64>)>,
         capacity: usize,
         stamp: u64,
         hits: u64,
@@ -211,13 +211,17 @@ pub mod query {
         /// returns a miss so the caller reloads the neighborhood from SQL.
         pub fn warm(&mut self, node_id: &str, now_ns: i64) -> Option<Vec<EdgeRow>> {
             match self.entries.get_mut(node_id) {
-                Some((_, _, next_change_ns))
+                Some((_, _, loaded_at_ns, _)) if now_ns < *loaded_at_ns => {
+                    self.misses += 1;
+                    None
+                }
+                Some((_, _, _, next_change_ns))
                     if (*next_change_ns).is_some_and(|at| now_ns >= at) =>
                 {
                     self.misses += 1;
                     None
                 }
-                Some((edges, stamp, _)) => {
+                Some((edges, stamp, _, _)) => {
                     self.stamp += 1;
                     *stamp = self.stamp;
                     self.hits += 1;
@@ -243,7 +247,7 @@ pub mod query {
                 if let Some(oldest) = self
                     .entries
                     .iter()
-                    .min_by_key(|(_, (_, stamp, _))| *stamp)
+                    .min_by_key(|(_, (_, stamp, _, _))| *stamp)
                     .map(|(k, _)| k.clone())
                 {
                     self.entries.remove(&oldest);
@@ -251,7 +255,7 @@ pub mod query {
             }
             self.stamp += 1;
             self.entries
-                .insert(node_id.to_string(), (edges.clone(), self.stamp, next_change_ns));
+                .insert(node_id.to_string(), (edges.clone(), self.stamp, now_ns, next_change_ns));
             Ok(edges)
         }
 
