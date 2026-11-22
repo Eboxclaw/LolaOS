@@ -1,3 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LOLA ACE</string>
+
+    <!-- Navigation -->
+    <string name="nav_chats">Chats</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_status">Status</string>
+
+    <!-- Shared actions -->
+    <string name="action_send">Send</string>
+    <string name="action_stop">Stop generating</string>
+    <string name="action_retry">Try again</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
 </resources>
