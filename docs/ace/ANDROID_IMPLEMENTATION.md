@@ -22,15 +22,16 @@
 
 ## Not yet validated
 
-- No physical Pixel 8 Pro execution has yet proven successful LFM3 generation.
+- No physical Pixel 8 Pro (or any phone) execution has yet proven successful LFM3 generation. **Emulator-validated 2026-11-22** on an ARM64 AVD ([BENCHMARK_RECORD_EMULATOR_V1](BENCHMARK_RECORD_EMULATOR_V1.md)): full download→interrupt→resume→SHA-256→install path, golden pt-BR suite outputs (seed-42 byte-reproducible), native TTFT/prefill/decode timings, cancellation with partial persistence, airplane-mode chat, restart persistence, delete-protection while resident. Emulator numbers are not device truth.
 - Conversation history is persisted locally but not encrypted by an app-specific encryption layer; there is no cloud sync.
 - The reference chat context is capped at 2,048 tokens. Long conversations may need a new conversation; automatic history compaction is not implemented.
-- No golden-output suite, load/unload stress run, cancellation-under-load device test or low-memory recovery test.
-- Native generation timing is implemented but has not yet been sampled on a physical Pixel 8 Pro; PSS, CPU frequency, temperature, battery and thermal measurements remain unavailable.
-- No physical Pixel 8 Pro execution, incremental KV-cache reuse, WorkManager/foreground download service or Kotlin↔Rust bridge.
+- Load/unload stress, cancellation-under-load device test and low-memory recovery test remain unexercised; model deletion was not exercised (only its protection while resident).
+- Native timing has been sampled on the emulator only; PSS, CPU frequency, temperature, battery and thermal measurements remain unavailable (not applicable in a guest).
+- Known defects carried from the emulator run: navigating away mid-generation desyncs the chat screen (no assistant message persisted); the model's `<think>` block leaks into the visible reply ending with a literal `</think>`.
+- No incremental KV-cache reuse, WorkManager/foreground download service or Kotlin↔Rust bridge.
 - No LOLA Native Engine yet; llama.cpp remains a replaceable reference backend only.
 
-A successful native build proves that the Android library compiles, not that a particular GGUF model can be loaded and answer prompts on the target device.
+A successful native build proves that the Android library compiles, not that a particular GGUF model can be loaded and answer prompts on the target device. The transfer-cancel inversion found live during the emulator run (PR #16) — which had silently broken every download — is the case in point.
 
 ## Immediate validation sequence
 

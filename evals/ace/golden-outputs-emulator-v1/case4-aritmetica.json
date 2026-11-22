@@ -1,0 +1,13 @@
+{
+  "case": "aritmetica-simples",
+  "prompt": "Quanto é 17 × 24? Responda apenas com o número.",
+  "output": "O usuário pergunta \"Quanto é 17 × 24? Responda apenas com o número.\" Isso é uma multiplicação simples. Vou calcular: 17 × 24. Deixa eu fazer: 17 × 20 = 340, 17 × 4 = 68, somando 340 + 68 = 408. Então o resultado é 408. Preciso responder apenas com o número, sem texto adicional. Portanto, a resposta deve ser \"408\".</think>408",
+  "output_sha256": "68b39176ff8cfaefea6a8beaf7fd88613bfc9d16f20a95ab3550e24f6fac834f",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "63 / 106",
+    "TTFT": "36996 ms",
+    "PREFILL": "36987 ms",
+    "DECODE": "1.24 tok/s",
+    "TEMPO TOTAL": "122431 ms"
+  }
+}

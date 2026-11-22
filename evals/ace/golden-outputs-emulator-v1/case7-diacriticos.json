@@ -1,0 +1,13 @@
+{
+  "case": "diacriticos-unicode",
+  "prompt": "Escreva uma frase curta usando obrigatoriamente as palavras: coração, ação, pinguim, paraíso, transporte.",
+  "output": "We need to write a short sentence in Portuguese (European) using the words: coração, ação, pinguim, paraíso, transporte. The user asks: \"Escreva uma frase curta usando obrigatoriamente as palavras: coração, ação, pinguim, paraíso, transporte.\" So we must include all five words exactly? They are: coração, ação, pinguim, paraíso, transporte. We need to craft a sentence that includes each of these words. Possibly in any order. Let's think about meaning: \"coração\" (heart), \"ação\" (action), \"pinguim\" (penguin), \"paraíso\" (paradise), \"transporte\" (transport). So we need a short sentence that uses all these words. For example: \"A ação do pinguim no paraíso é um transporte do coração.\" That seems forced but includes them. Let's check each word: coração, ação, pinguim, paraíso, transporte. Yes.\n\nWe can make it more natural: \"Com uma ação de pinguim no paraíso, o transporte leva o coração ao amor.\" Not sure about",
+  "output_sha256": "62245246cbeb12522c652b2ce08ebf02e08a10e3d13b8f3ad897b07682dded5b",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "79 / 256",
+    "TTFT": "46162 ms",
+    "PREFILL": "46154 ms",
+    "DECODE": "1.20 tok/s",
+    "TEMPO TOTAL": "259278 ms"
+  }
+}

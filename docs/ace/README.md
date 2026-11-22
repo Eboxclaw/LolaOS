@@ -47,10 +47,10 @@ Implemented Android application:
 - private SQLite conversation storage, multiple conversations, local history selection and partial-response persistence.
 
 Not yet validated:
-- physical Pixel 8 Pro inference, LFM3 golden outputs, cancellation stress and low-memory behaviour;
-- TTFT, prefill/decode throughput, PSS and thermal measurements;
+- physical-device (Pixel 8 Pro) inference, PSS, thermal and low-memory behaviour — the emulator baseline ([BENCHMARK_RECORD_EMULATOR_V1](BENCHMARK_RECORD_EMULATOR_V1.md)) is not device truth;
+- emulator-validated already (2026-11-22, see the record): in-app download with real network-loss resume, SHA-256 install, golden pt-BR outputs with seed-42 byte-reproducibility, native TTFT/prefill/decode readings, cancellation with partial persistence, airplane-mode chat, restart persistence;
 - incremental KV-cache reuse, foreground download guarantees and Kotlin↔Rust bridge;
-- Pixel-device context budgeting, history compaction and conversation deletion UI;
+- physical-device context budgeting, history compaction and conversation deletion UI;
 - LOLA Native Engine implementation.
 
 See [Android reference backend](ANDROID_REFERENCE_BACKEND.md) and [Android implementation status](ANDROID_IMPLEMENTATION.md) for details.

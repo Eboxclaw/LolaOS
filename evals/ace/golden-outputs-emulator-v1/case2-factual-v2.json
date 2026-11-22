@@ -1,0 +1,13 @@
+{
+  "case": "factual-uma-palavra",
+  "prompt": "Qual é a capital de Portugal? Responda em uma palavra.",
+  "output": "O usuário pergunta qual é a capital de Portugal e pede para responder em uma palavra. A capital de Portugal é Lisboa. Preciso responder apenas com uma palavra, então \"Lisboa\" ou \"Lisbon\"? Em português europeu, a capital é escrita como \"Lisboa\". Vou usar essa forma.</think>Lisboa",
+  "output_sha256": "f066a460a120a9dd51a86919a9fed383c34b400308f83345b52d18956d5e4ffe",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "61 / 73",
+    "TTFT": "35881 ms",
+    "PREFILL": "35866 ms",
+    "DECODE": "1.23 tok/s",
+    "TEMPO TOTAL": "95015 ms"
+  }
+}

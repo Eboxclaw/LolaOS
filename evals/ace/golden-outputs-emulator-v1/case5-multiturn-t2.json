@@ -1,0 +1,13 @@
+{
+  "case": "memoria-multi-turn (turn 2)",
+  "prompt": "Qual é o nome do meu app favorito e qual a principal característica dele?",
+  "output": "O usuário está perguntando qual é o nome do seu app favorito e a principal característica dele. Na conversa anterior, ele me disse que seu app favorito se chama LOLA e roda sem internet. Então, o nome é LOLA e a principal característica é que ele roda sem internet (offline). Preciso responder em português europeu, como solicitado. Vou confirmar os dados: \"LOLA\" e \"roda sem internet\". A pergunta é direta, então posso dar a resposta de forma clara.</think>Meu nome de app favorito é **LOLA**, e sua principal característica é que ele roda **sem internet** (offline).",
+  "output_sha256": "0198c03563b7b125faccdc88852d54eaa2e8f4f022071f762abe0ffeb1c57d15",
+  "diagnostics": {
+    "TOKENS DE PROMPT / SAÍDA": "121 / 146",
+    "TTFT": "71798 ms",
+    "PREFILL": "71786 ms",
+    "DECODE": "1.21 tok/s",
+    "TEMPO TOTAL": "192560 ms"
+  }
+}
