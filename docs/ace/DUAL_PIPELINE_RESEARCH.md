@@ -100,9 +100,32 @@ Recommendations:
   the escalate route, and budget exhaustion stops it before the first
   chunk.
 
-## D. Execution path this slice unblocks
+## D. Execution path (dependency-ordered, traced 2026-11-22)
 
-Dual-pipeline v0 (this slice) → ace-inference adapters (prefill port on
-the llama.cpp backend; `prefill()`/`diagnostics()` contract extensions
-per INFERENCE_CONTRACT §2) → A8 UniFFI bridge → N3 native-engine
-integration. Blocked elsewhere: A5/N4 on physical hardware (ADR-044 §6).
+**Unblocked now, in actionable order:**
+
+1. **Dual pipeline** (this slice, A10) → 2. **ace-inference adapters**:
+   implement `DecisionReadout`/`StreamingEngine` over the llama.cpp
+   backend; add `prefill()`/`diagnostics()` to the contract
+   (INFERENCE_CONTRACT §2 names are illustrative) → 3. **A8** UniFFI
+   bridge (no A5 dependency) — app served through `ace-inference` →
+   4. **A6** incremental KV reuse + history compaction (emulator-gated,
+   not device-gated) and **A7** WorkManager download guarantee
+   (independent, parallelizable) → 5. **N0** native-inference audit
+   (docs-only; consumes this research digest + engine-lab assets) →
+   6. Engine-lab **S2** oracle bring-up (S0 ✅) → S3 kernels on its golden
+   set; **S4/S6** open in parallel; **S2m P1** on any device.
+
+**Blocked, by exactly what:**
+
+- **A5** device truth run → physical Pixel 8 Pro (or any ARM64 phone).
+- **N4** → A5 reference numbers (ADR-044 §6).
+- **N1 → N0; N2 → N1; N3 → N1+N2 + contract stability; A9 folded into
+  N3/N4** — the native chain cannot start ahead of its audit.
+- Engine lab: S3 → S2 golden set; S5 → S2 (+S6 optional); S7 → S4+S5+S6;
+  S8 → S6+S7; S9 → S2+S5; S2m P2–P5 → retail device; d1 slot-A quant →
+  SB QAD gates (ADR-040); any distribution → LFM license review.
+
+**Wire order for the dual pipeline specifically:** adapters (2) first on
+the reference backend, so the same ports are later served by the native
+engine at N3 without touching Decision/Streaming orchestration again.
