@@ -21,7 +21,21 @@ a slice.
 | A6 | Incremental KV reuse + history compaction (2,048-token cap) | queued |
 | A7 | WorkManager/FGS download guarantee | queued |
 | A8 | Kotlin↔Rust bridge: app served through `ace-inference`/UniFFI, contracts unified (kills the parallel Kotlin/Rust interface duplication) | queued |
-| A9 | LOLA Native Engine adoption harness: same-device A/B vs reference on the golden suite, SB gates (ppl-Δ ≤0.5%, token-identity ≥99.5%, NIA) arbitrate | queued, engine lab feeds it |
+| A9 | Native-engine adoption harness — folded into the N-track below (N3/N4) | → N-track |
+
+### N-track — LOLA Native Inference ([ADR-044](ace/NATIVE_INFERENCE.md))
+
+| # | Phase | Status |
+|---|---|---|
+| N0 | Architecture & research: audit lab + contracts, map LFM3 ops, minimum native path, correctness requirements, benchmark methodology | queued |
+| N1 | Native engine foundation: runtime/backend boundary, loader + validation, tensors & memory, operator interfaces & scheduling, minimal LFM3 path | queued |
+| N2 | LFM3 performance engineering: short-conv/attention kernels, quantised paths (ADR-040 ladder), state management, ARM64 dispatch | queued |
+| N3 | ACE integration through the inference contract: sessions, streaming, cancellation, Decision/Streaming separation, lifecycle | queued |
+| N4 | Comparative optimisation: identical workloads LOLA Native vs llama.cpp vs LiteRT-LM on hardware; reproducible benchmark records | queued (needs A5 reference numbers) |
+
+**N-track exit:** all eight acceptance criteria of
+[NATIVE_INFERENCE](ace/NATIVE_INFERENCE.md) §8 satisfied on hardware —
+only then does the native engine replace the reference backend.
 
 **A5 exit:** pinned-seed golden outputs recorded with device provenance ·
 TTFT/prefill/decode-tok/s/peak-PSS/thermal captured per
