@@ -76,6 +76,10 @@ pub enum Relation {
 /// validity-filtered, bounded; the hot cache holds the active
 /// instrument's neighborhood in RAM (small by design — MEMORY §4 keeps
 /// provenance + validity, and our subgraph is *our* subgraph).
+///
+/// Cache entries expire at the next temporal boundary (a future
+/// valid_from or an active valid_until), so a warm read never crosses
+/// an edge's validity transition without reloading from SQL.
 pub mod query {
     use rusqlite::Connection;
 
@@ -101,6 +105,31 @@ pub mod query {
              AND ({a}.valid_from_ns IS NULL OR {a}.valid_from_ns <= ?2)",
             a = alias
         )
+    }
+
+    /// Earliest future edge-validity transition for this node.
+    ///
+    /// A cached neighborhood must be refreshed both when an active edge
+    /// expires and when a currently-future edge becomes valid.
+    fn next_validity_change(
+        conn: &Connection,
+        node_id: &str,
+        now_ns: i64,
+    ) -> crate::Result<Option<i64>> {
+        let mut stmt = conn.prepare_cached(
+            "SELECT MIN(boundary_ns) FROM (
+                 SELECT valid_from_ns AS boundary_ns
+                 FROM graph_edges
+                 WHERE source_node_id = ?1 AND valid_from_ns > ?2
+                 UNION ALL
+                 SELECT valid_until_ns AS boundary_ns
+                 FROM graph_edges
+                 WHERE source_node_id = ?1 AND valid_until_ns > ?2
+             )",
+        )?;
+        Ok(stmt.query_row(rusqlite::params![node_id, now_ns], |row| {
+            row.get::<_, Option<i64>>(0)
+        })?)
     }
 
     /// Outgoing valid edges from `node_id`, bounded.
@@ -160,7 +189,7 @@ pub mod query {
     /// (bounded, stamp-evicted like SP2). The caller invalidates on any
     /// graph write for correctness-critical reads.
     pub struct EdgeHotCache {
-        entries: std::collections::HashMap<String, (Vec<EdgeRow>, u64)>,
+        entries: std::collections::HashMap<String, (Vec<EdgeRow>, u64, Option<i64>)>,
         capacity: usize,
         stamp: u64,
         hits: u64,
@@ -178,10 +207,17 @@ pub mod query {
             }
         }
 
-        /// Warm lookup: RAM only, no SQL. Gate < 20 µs (measured ~ns).
-        pub fn warm(&mut self, node_id: &str) -> Option<Vec<EdgeRow>> {
+        /// Warm lookup: RAM only, no SQL. A crossed validity boundary
+        /// returns a miss so the caller reloads the neighborhood from SQL.
+        pub fn warm(&mut self, node_id: &str, now_ns: i64) -> Option<Vec<EdgeRow>> {
             match self.entries.get_mut(node_id) {
-                Some((edges, stamp)) => {
+                Some((_, _, next_change_ns))
+                    if (*next_change_ns).is_some_and(|at| now_ns >= at) =>
+                {
+                    self.misses += 1;
+                    None
+                }
+                Some((edges, stamp, _)) => {
                     self.stamp += 1;
                     *stamp = self.stamp;
                     self.hits += 1;
@@ -202,11 +238,12 @@ pub mod query {
             now_ns: i64,
         ) -> crate::Result<Vec<EdgeRow>> {
             let edges = open_edges_from(conn, node_id, now_ns, 20)?;
+            let next_change_ns = next_validity_change(conn, node_id, now_ns)?;
             if self.entries.len() >= self.capacity && !self.entries.contains_key(node_id) {
                 if let Some(oldest) = self
                     .entries
                     .iter()
-                    .min_by_key(|(_, (_, stamp))| *stamp)
+                    .min_by_key(|(_, (_, stamp, _))| *stamp)
                     .map(|(k, _)| k.clone())
                 {
                     self.entries.remove(&oldest);
@@ -214,7 +251,7 @@ pub mod query {
             }
             self.stamp += 1;
             self.entries
-                .insert(node_id.to_string(), (edges.clone(), self.stamp));
+                .insert(node_id.to_string(), (edges.clone(), self.stamp, next_change_ns));
             Ok(edges)
         }
 
@@ -225,7 +262,7 @@ pub mod query {
             node_id: &str,
             now_ns: i64,
         ) -> crate::Result<Vec<EdgeRow>> {
-            match self.warm(node_id) {
+            match self.warm(node_id, now_ns) {
                 Some(edges) => Ok(edges),
                 None => self.cold(conn, node_id, now_ns),
             }
