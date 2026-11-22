@@ -68,12 +68,12 @@ mod tests {
 
     // ---- Dual pipeline (runtime.rs) ----
 
+    use crate::pipeline::RunId;
     use crate::runtime::{
         ContextEntry, ContextRole, ContextSnapshot, DecisionReadout, DecisionReadoutReport,
         DualPipeline, FailureReason, RouteDecision, RoutePolicy, RunOutcome, ScoredChoice,
         StreamingEngine, StreamingReport,
     };
-    use crate::pipeline::RunId;
 
     struct PrefillOnlyReadout {
         scores: Vec<ScoredChoice>,
@@ -151,10 +151,14 @@ mod tests {
             calls: calls.clone(),
         };
         let stream_calls = std::rc::Rc::new(std::cell::Cell::new(0));
-        let streaming = CountingStreamProbe { counter: stream_calls.clone() };
-        let mut pipeline = DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
+        let streaming = CountingStreamProbe {
+            counter: stream_calls.clone(),
+        };
+        let mut pipeline =
+            DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
         let token = CancellationToken::new();
-        let (outcome, ledger) = pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
+        let (outcome, ledger) =
+            pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
         match outcome {
             RunOutcome::Direct { route, .. } => assert_eq!(route, RouteDecision::Direct),
             other => panic!("expected direct, got {other:?}"),
@@ -198,13 +202,18 @@ mod tests {
             chunks: vec!["He", "llo", "!"],
             calls: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
-        let mut pipeline = DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
+        let mut pipeline =
+            DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
         let token = CancellationToken::new();
         let mut seen: Vec<(u32, String)> = Vec::new();
-        let (outcome, ledger) =
-            pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |seq, text| {
+        let (outcome, ledger) = pipeline.execute(
+            snapshot_entries(),
+            &["PROCEED"],
+            &token,
+            &mut |seq, text| {
                 seen.push((seq, text.to_string()));
-            });
+            },
+        );
         match outcome {
             RunOutcome::Escalated { reply, report, .. } => {
                 assert_eq!(reply, "Hello!");
@@ -212,7 +221,10 @@ mod tests {
             }
             other => panic!("expected escalated, got {other:?}"),
         }
-        assert_eq!(seen, vec![(1, "He".into()), (2, "llo".into()), (3, "!".into())]);
+        assert_eq!(
+            seen,
+            vec![(1, "He".into()), (2, "llo".into()), (3, "!".into())]
+        );
         assert!(matches!(
             ledger.events().last(),
             Some(crate::runtime::PipelineEvent::StreamingCompleted { .. })
@@ -232,9 +244,11 @@ mod tests {
         let streaming = CountingStreamProbe {
             counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
-        let mut pipeline = DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
+        let mut pipeline =
+            DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
         let token = CancellationToken::new();
-        let (outcome, _) = pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
+        let (outcome, _) =
+            pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
         assert!(matches!(outcome, RunOutcome::Failed(_)));
     }
 
@@ -284,7 +298,8 @@ mod tests {
         };
         let mut pipeline = DualPipeline::new(budget, &decision, &streaming, RoutePolicy::default());
         let token = CancellationToken::new();
-        let (outcome, ledger) = pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
+        let (outcome, ledger) =
+            pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
         assert!(matches!(outcome, RunOutcome::Failed(_)));
         assert!(matches!(
             ledger.events().last(),
@@ -302,11 +317,16 @@ mod tests {
         let streaming = CountingStreamProbe {
             counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
-        let mut pipeline = DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
+        let mut pipeline =
+            DualPipeline::new(test_budget(), &decision, &streaming, RoutePolicy::default());
         let token = CancellationToken::new();
         token.cancel();
-        let (outcome, ledger) = pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
-        assert!(matches!(outcome, RunOutcome::Failed(FailureReason::Cancelled)));
+        let (outcome, ledger) =
+            pipeline.execute(snapshot_entries(), &["PROCEED"], &token, &mut |_, _| {});
+        assert!(matches!(
+            outcome,
+            RunOutcome::Failed(FailureReason::Cancelled)
+        ));
         assert!(matches!(
             ledger.events().last(),
             Some(crate::runtime::PipelineEvent::DecisionFailed { .. })

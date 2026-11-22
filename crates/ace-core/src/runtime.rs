@@ -336,9 +336,12 @@ impl<'a> DualPipeline<'a> {
                 run_id: decision_run,
                 reason: FailureReason::BudgetExceeded(BudgetError::TransitionsExceeded),
             });
-            return (RunOutcome::Failed(FailureReason::BudgetExceeded(
-                BudgetError::TransitionsExceeded,
-            )), ledger);
+            return (
+                RunOutcome::Failed(FailureReason::BudgetExceeded(
+                    BudgetError::TransitionsExceeded,
+                )),
+                ledger,
+            );
         }
         if cancellation.is_cancelled() {
             ledger.record(PipelineEvent::DecisionFailed {
@@ -352,7 +355,8 @@ impl<'a> DualPipeline<'a> {
             snapshot_id: snapshot.snapshot_id(),
         });
 
-        if let Err(error) = usage.record_input_tokens(snapshot.estimated_input_tokens(), &self.budget)
+        if let Err(error) =
+            usage.record_input_tokens(snapshot.estimated_input_tokens(), &self.budget)
         {
             let reason = FailureReason::BudgetExceeded(error);
             ledger.record(PipelineEvent::DecisionFailed {
@@ -428,8 +432,8 @@ impl<'a> DualPipeline<'a> {
                     return (RunOutcome::Failed(reason), ledger);
                 }
                 let options = GenerationOptions::default();
-                if let Err(error) =
-                    usage.record_input_tokens(streaming_snapshot.estimated_input_tokens(), &self.budget)
+                if let Err(error) = usage
+                    .record_input_tokens(streaming_snapshot.estimated_input_tokens(), &self.budget)
                 {
                     let reason = FailureReason::BudgetExceeded(error);
                     ledger.record(PipelineEvent::StreamingFailed {
@@ -454,7 +458,8 @@ impl<'a> DualPipeline<'a> {
                 ) {
                     Ok(report) => {
                         let _ = sequence;
-                        if let Err(error) = usage.record_output_tokens(report.output_tokens, &self.budget)
+                        if let Err(error) =
+                            usage.record_output_tokens(report.output_tokens, &self.budget)
                         {
                             let reason = FailureReason::BudgetExceeded(error);
                             ledger.record(PipelineEvent::StreamingFailed {
