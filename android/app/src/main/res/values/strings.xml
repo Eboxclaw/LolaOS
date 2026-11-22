@@ -13,4 +13,36 @@
     <string name="action_retry">Try again</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_delete">Delete</string>
+
+    <!-- Chat -->
+    <string name="chat_new">New chat</string>
+    <string name="chat_history">History (%1$d)</string>
+    <string name="chat_overline">LOCAL CHAT</string>
+    <string name="chat_no_model">No model in the catalogue</string>
+    <string name="chat_input_hint">Write a message…</string>
+    <string name="chat_empty_ready">The model is ready. Send a message to start. The first reply can take a moment while the engine prepares the context.</string>
+    <string name="chat_empty_idle">Chats stay on this device. Load the model to keep talking.</string>
+    <string name="chat_privacy_note">Runs on this device. Nothing leaves it.</string>
+    <string name="chat_delete_title">Delete chat?</string>
+    <string name="chat_delete_body">This chat and its messages will be removed from this device. Installed models are not affected.</string>
+    <string name="chat_status_download_needed">Download and verify the model in the library to start.</string>
+    <string name="chat_status_installed">Model installed and verified. Not yet loaded in memory.</string>
+    <string name="chat_status_loading">Loading the model into device memory…</string>
+    <string name="chat_status_active">Reference engine active · CPU ARM64</string>
+    <string name="chat_status_session">Model loaded · preparing the session</string>
+    <string name="chat_status_failed">The engine could not load the model.</string>
+    <string name="chat_not_installed_title">LFM3 is not installed yet.</string>
+    <string name="chat_not_installed_body">Open the library, download the GGUF, and LOLA verifies the SHA-256.</string>
+    <string name="chat_open_library">Open library</string>
+    <string name="chat_load_model">Load LFM3 on device</string>
+    <string name="chat_loading_backend">Initializing the CPU backend…</string>
+    <string name="chat_free_memory">Free memory</string>
+    <string name="chat_opening_session">Opening chat session…</string>
+    <string name="chat_retry_session">Try opening session</string>
+    <string name="chat_retry_load">Try loading again</string>
+    <string name="chat_engine_footnote">llama.cpp reference · CPU · 2K context · 256-token replies · history stays on this device</string>
+    <string name="chat_history_footnote">History stays available without the model loaded. Load LFM3 to send new messages.</string>
+    <string name="chat_reasoning">Reasoning</string>
+    <string name="chat_role_user">YOU</string>
+    <string name="chat_role_lola">LOLA</string>
 </resources>
