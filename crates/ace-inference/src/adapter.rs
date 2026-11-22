@@ -205,7 +205,6 @@ mod tests {
     };
     use ace_core::{Budget, ContextEntry, ContextRole, DualPipeline, RoutePolicy};
     use std::cell::Cell;
-    
 
     const MODEL: ModelDescriptor = ModelDescriptor {
         id: ModelId(String::new()),
