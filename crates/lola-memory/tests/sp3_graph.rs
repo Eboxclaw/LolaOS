@@ -134,7 +134,7 @@ fn hot_cache_refreshes_at_validity_boundaries_and_invalidates_writes() {
     conn.execute(
         "INSERT INTO graph_edges (edge_id, source_node_id, relation, target_node_id,
              attributes_json, source_type, source_ref, created_at_ns)
-         VALUES ('e6', 'n-instrument', 'SupportedBy', 'n-decision', '{}', 'test', 'sp3', 2)",
+         VALUES ('e6', 'n-instrument', 'SupportedBy', 'n-decision', '{}', 'test', 'sp3-write', 2)",
         params![],
     )
     .expect("new edge");
