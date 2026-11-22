@@ -100,6 +100,12 @@ fun ChatScreen(
     transferManager: ModelTransferManager,
     backend: LocalInferenceBackend,
     onOpenModels: () -> Unit,
+    onOpenHome: () -> Unit = {},
+    pendingOpenConversationId: Long? = null,
+    onPendingOpenConsumed: () -> Unit = {},
+    requestNewConversation: Boolean = false,
+    onNewConversationRequestConsumed: () -> Unit = {},
+    onActiveConversationChange: (Long?) -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository = remember(context) { ChatRepositoryProvider.get(context) }
@@ -116,7 +122,6 @@ fun ChatScreen(
     var localError by remember { mutableStateOf<String?>(null) }
     var conversations by remember { mutableStateOf<List<StoredConversation>>(emptyList()) }
     var currentConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var showHistory by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var historyLoading by remember { mutableStateOf(true) }
     var conversationLoading by remember { mutableStateOf(false) }
@@ -229,7 +234,6 @@ fun ChatScreen(
                 }
                 currentConversationId = newId
                 refreshConversations()
-                showHistory = false
                 localError = null
             } catch (error: CancellationException) {
                 throw error
@@ -242,12 +246,10 @@ fun ChatScreen(
 
     fun selectConversation(conversationId: Long) {
         if (generating || currentConversationId == conversationId) {
-            showHistory = false
             return
         }
         conversationLoading = true
         currentConversationId = conversationId
-        showHistory = false
         localError = null
     }
 
@@ -270,9 +272,27 @@ fun ChatScreen(
                 throw error
             } catch (error: Exception) {
                 conversationLoading = false
-                localError = error.message ?: "Não foi possível apagar esta conversa."
+                localError = error.message ?: "Não foi possível apagar a conversa."
             }
         }
+    }
+
+    LaunchedEffect(pendingOpenConversationId) {
+        pendingOpenConversationId?.let {
+            selectConversation(it)
+            onPendingOpenConsumed()
+        }
+    }
+
+    LaunchedEffect(requestNewConversation) {
+        if (requestNewConversation) {
+            createNewConversation()
+            onNewConversationRequestConsumed()
+        }
+    }
+
+    LaunchedEffect(currentConversationId) {
+        onActiveConversationChange(currentConversationId)
     }
 
     fun loadModel() {
@@ -415,28 +435,10 @@ fun ChatScreen(
                     !generating && !historyLoading && !conversationLoading,
             ) { Text(stringResource(R.string.action_delete)) }
             Spacer(modifier = Modifier.weight(1f))
-            Column {
-                TextButton(
-                    onClick = { showHistory = true },
-                    enabled = conversations.isNotEmpty() && !historyLoading && !generating && !conversationLoading,
-                ) { Text(stringResource(R.string.chat_history, conversations.size)) }
-                DropdownMenu(
-                    expanded = showHistory,
-                    onDismissRequest = { showHistory = false },
-                ) {
-                    conversations.forEach { conversation ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = conversation.title,
-                                    maxLines = 1,
-                                )
-                            },
-                            onClick = { selectConversation(conversation.id) },
-                        )
-                    }
-                }
-            }
+            TextButton(
+                onClick = onOpenHome,
+                enabled = !generating && !conversationLoading,
+            ) { Text(stringResource(R.string.home_action)) }
         }
 
         if (showDeleteConfirmation) {

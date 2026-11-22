@@ -48,6 +48,10 @@ fun LolaAceApp() {
     }
     var destination by rememberSaveable { mutableStateOf(AceDestination.CHAT.name) }
     val selectedDestination = AceDestination.valueOf(destination)
+    var chatHomeOpen by rememberSaveable { mutableStateOf(false) }
+    var pendingOpenConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var requestNewConversation by rememberSaveable { mutableStateOf(false) }
+    var activeConversationId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Scaffold(
         topBar = {
@@ -84,13 +88,33 @@ fun LolaAceApp() {
                 .padding(innerPadding),
         ) {
             when (selectedDestination) {
-                AceDestination.CHAT -> ChatScreen(
-                    model = catalogResult.getOrNull()?.firstOrNull(),
-                    catalogueAvailable = catalogResult.isSuccess,
-                    transferManager = transferManager,
-                    backend = inferenceBackend,
-                    onOpenModels = { destination = AceDestination.MODELS.name },
-                )
+                AceDestination.CHAT -> if (chatHomeOpen) {
+                    ConversationsHomeScreen(
+                        currentConversationId = activeConversationId,
+                        onOpenConversation = { id ->
+                            pendingOpenConversationId = id
+                            chatHomeOpen = false
+                        },
+                        onNewConversation = {
+                            requestNewConversation = true
+                            chatHomeOpen = false
+                        },
+                    )
+                } else {
+                    ChatScreen(
+                        model = catalogResult.getOrNull()?.firstOrNull(),
+                        catalogueAvailable = catalogResult.isSuccess,
+                        transferManager = transferManager,
+                        backend = inferenceBackend,
+                        onOpenModels = { destination = AceDestination.MODELS.name },
+                        onOpenHome = { chatHomeOpen = true },
+                        pendingOpenConversationId = pendingOpenConversationId,
+                        onPendingOpenConsumed = { pendingOpenConversationId = null },
+                        requestNewConversation = requestNewConversation,
+                        onNewConversationRequestConsumed = { requestNewConversation = false },
+                        onActiveConversationChange = { activeConversationId = it },
+                    )
+                }
                 AceDestination.MODELS -> ModelsScreen(
                     models = catalogResult.getOrNull().orEmpty(),
                     catalogueError = catalogResult.exceptionOrNull()?.message,
