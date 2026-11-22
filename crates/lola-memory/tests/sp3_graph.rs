@@ -143,6 +143,24 @@ fn hot_cache_refreshes_at_validity_boundaries_and_invalidates_writes() {
 }
 
 #[test]
+fn hot_cache_misses_when_query_time_moves_before_its_load_anchor() {
+    let (conn, path) = seeded();
+    let mut cache = EdgeHotCache::new(64);
+
+    // Load at t=150 after e5 has expired; a historical query at t=100
+    // must not reuse that later snapshot because e5 was valid then.
+    let at_150 = cache.cold(&conn, "n-instrument", 150).expect("cold at 150");
+    assert_eq!(at_150.len(), 1);
+    assert!(cache.warm("n-instrument", 100).is_none());
+
+    let at_100 = cache.edges_for(&conn, "n-instrument", 100).expect("historical refresh");
+    assert_eq!(at_100.len(), 2);
+    assert!(at_100.iter().any(|edge| edge.edge_id == "e5"));
+    drop(conn);
+    cleanup(&path);
+}
+
+#[test]
 fn edge_row_shape_round_trips() {
     let row = EdgeRow {
         edge_id: "e1".into(),
