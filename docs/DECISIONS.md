@@ -379,3 +379,10 @@ targets is not an active ACE surface. Nothing is deleted; anything is
 adoptable only through ACE's evidence gates. First model is LFM3-only
 (LFM Open License review remains a blocking gate before any
 distribution). ACE = Adaptive Cognitive Execution.
+
+
+---
+
+*ACE memory, skills and workflow-graph round (2026-11-22). Full decision and research: [ADR-043](ace/ADR-043-MEMORY-SKILLS-WORKFLOW-GRAPHS.md).*
+
+**ADR-043 — ACE adopts a model-independent memory substrate, Agent Skills and typed Workflow Graphs.** Memory is a governed lifecycle (episodic, semantic, procedural and working), not a vector database or longer prompt. Start with local SQLite + provenance + FTS5 + structured/graph retrieval; add embeddings/int8 vector retrieval only behind measured recall and resource gates. TurboQuant is an experimental quantization candidate for vector indexes and, separately, inference KV caches; no H100 or cross-model performance claims transfer to Android/LFM3 without same-device evidence. FlashMem is a model-specific latent-memory research direction, not canonical persistent memory. Adopt the Agent Skills standard unchanged; skills describe reusable capabilities, while separate versioned typed Workflow Graphs compose skills, retrieval, model calls, tools, validation and outputs. Decision owns graph validation, planning, retrieval policy, scheduling and tool authorization; Streaming owns model/session state and ordered generation. They communicate through typed events and immutable context snapshots. Initial ACE vertical remains LFM3-1.7B; future multiple streaming profiles are capability/budget-selected. Legacy trading crates remain research references only and are not ACE dependencies.
