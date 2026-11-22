@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -19,17 +20,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import ai.lola.ace.R
 import ai.lola.ace.data.ModelArtifactSummary
 import ai.lola.ace.data.ModelCatalogRepository
 import ai.lola.ace.data.ModelTransferManager
 import ai.lola.ace.data.ModelTransferManagerProvider
 import ai.lola.ace.inference.LocalInferenceBackendProvider
 
-private enum class AceDestination(val label: String, val symbol: String) {
-    CHAT("Conversas", "◉"),
-    MODELS("Modelos", "▤"),
-    DIAGNOSTICS("Diagnóstico", "⌁"),
+private enum class AceDestination(val labelRes: Int, val iconRes: Int) {
+    CHAT(R.string.nav_chats, R.drawable.ic_chat),
+    MODELS(R.string.nav_library, R.drawable.ic_library),
+    DIAGNOSTICS(R.string.nav_status, R.drawable.ic_status),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,7 +53,7 @@ fun LolaAceApp() {
         topBar = {
             TopAppBar(
                 title = {
-                    Text("LOLA ACE", letterSpacing = 2.sp)
+                    Text(stringResource(R.string.app_name))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
@@ -63,8 +66,13 @@ fun LolaAceApp() {
                     NavigationBarItem(
                         selected = selectedDestination == item,
                         onClick = { destination = item.name },
-                        icon = { Text(item.symbol) },
-                        label = { Text(item.label) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(item.iconRes),
+                                contentDescription = null,
+                            )
+                        },
+                        label = { Text(stringResource(item.labelRes)) },
                     )
                 }
             }
