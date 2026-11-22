@@ -6,3 +6,6 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Backend-neutral inference contracts for LOLA ACE"
+
+[dependencies]
+ace-core = { path = "../ace-core" }

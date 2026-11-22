@@ -5,6 +5,8 @@
 
 use std::{any::Any, ops::ControlFlow};
 
+pub mod adapter;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModelId(pub String);
 
@@ -133,6 +135,83 @@ pub trait InferenceBackend: Send {
         options: &GenerationOptions,
         on_chunk: &mut dyn FnMut(StreamChunk) -> ControlFlow<()>,
     ) -> Result<GenerationReport, InferenceError>;
+
+    /// Process the prompt WITHOUT generating: the Decision pipeline's
+    /// primitive (INFERENCE_CONTRACT §2). Implementations build (possibly
+    /// transient) prefill state and report the prompt token count; no
+    /// output tokens may be produced. Backends that cannot prefill without
+    /// decoding keep the default and stay usable for Streaming only.
+    fn prefill(
+        &self,
+        session: &mut InferenceSession,
+        run_id: RunId,
+        input_tokens: &[u32],
+    ) -> Result<PrefillReport, InferenceError> {
+        let _ = (session, run_id, input_tokens);
+        Err(InferenceError::UnsupportedCapability("prefill".into()))
+    }
+
+    /// Decision readout: score a fixed choice set off the prefill state at
+    /// the final position. Generic decision-model primitive — any backend
+    /// whose runtime can expose next-position choice scores may implement
+    /// it; the choice token mapping is the caller's (tokenizer's) job.
+    /// KV built here is transient and dropped on return (ADR-024).
+    fn score_choices(
+        &self,
+        session: &mut InferenceSession,
+        run_id: RunId,
+        input_tokens: &[u32],
+        choices: &[Vec<u32>],
+    ) -> Result<ChoiceScores, InferenceError> {
+        let _ = (session, run_id, input_tokens, choices);
+        Err(InferenceError::UnsupportedCapability(
+            "score_choices".into(),
+        ))
+    }
+
+    /// Post-run diagnostics for one run (timings, token counts) where the
+    /// backend can expose them (INFERENCE_CONTRACT §2 "metrics").
+    fn diagnostics(
+        &self,
+        session: &InferenceSession,
+        run_id: RunId,
+    ) -> Result<RunDiagnostics, InferenceError> {
+        let _ = (session, run_id);
+        Err(InferenceError::UnsupportedCapability("diagnostics".into()))
+    }
+
+    /// Out-of-band cancellation for one run. In-band cancellation via
+    /// [`StreamControl`] stays the primary mechanism; this covers runs
+    /// whose owner is no longer draining chunks.
+    fn cancel(&self, run_id: RunId) -> Result<(), InferenceError> {
+        let _ = run_id;
+        Err(InferenceError::UnsupportedCapability("cancel".into()))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrefillReport {
+    pub run_id: RunId,
+    pub prompt_tokens: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChoiceScores {
+    pub run_id: RunId,
+    /// One score per requested choice, same order. Normalization (if any)
+    /// is the caller's policy, not the backend's.
+    pub scores: Vec<f32>,
+    /// True when the implementation leaves no prefill KV resident.
+    pub kv_dropped: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RunDiagnostics {
+    pub prompt_tokens: Option<u32>,
+    pub generated_tokens: Option<u32>,
+    pub ttft_ms: Option<u64>,
+    pub prefill_ms: Option<u64>,
+    pub decode_ms: Option<u64>,
 }
 
 #[cfg(test)]

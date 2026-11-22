@@ -22,7 +22,8 @@ a slice.
 | A7 | WorkManager/FGS download guarantee | queued |
 | A8 | Kotlin↔Rust bridge: app served through `ace-inference`/UniFFI, contracts unified (kills the parallel Kotlin/Rust interface duplication) | queued |
 | A9 | Native-engine adoption harness — folded into the N-track below (N3/N4) | → N-track |
-| A10 | Dual-pipeline v0 in `ace-core`: Decision (prefill-only readout port) + Streaming (only generator) with typed events, immutable snapshots, deterministic RoutePolicy + content-free calibration, fail-closed budgets — [DUAL_PIPELINE_RESEARCH](ace/DUAL_PIPELINE_RESEARCH.md) | in review |
+| A10 | Dual-pipeline v0 in `ace-core` — merged (PR #24) | ✅ |
+| A11 | Contract adapters: `ace-inference` implements the A10 ports over `InferenceBackend`; contract gains `prefill`/`score_choices`/`diagnostics`/`cancel` (INFERENCE_CONTRACT §2 names now implemented) | in review |
 
 ### N-track — LOLA Native Inference ([ADR-044](ace/NATIVE_INFERENCE.md))
 

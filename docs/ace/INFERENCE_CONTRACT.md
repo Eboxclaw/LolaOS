@@ -90,3 +90,17 @@ Do not treat llama.cpp, ONNX Runtime or LiteRT as the LOLA architecture. They ar
 - malformed/corrupt model artefact;
 - golden output/logit comparison with documented tolerances;
 - repeatability across backend versions.
+
+---
+
+**Implemented surface (2026-11-22, pipeline-adapter PR).** The illustrative
+names above landed as: `generate` (ordered chunks + in-band cancellation),
+`prefill` (prompt processing, no generation), `score_choices` (generic
+decision-readout over the final prefill position; KV transient by
+contract), `diagnostics` (per-run metrics incl. TTFT) and `cancel`
+(out-of-band). Defaults return `UnsupportedCapability`, so Streaming-only
+backends remain valid implementors. The A10 dual-pipeline ports are
+bridged by `ace_inference::adapter` (`ContractDecisionReadout`,
+`ContractStreamingEngine`), each owning an independent session; the
+llama.cpp backend implements `generate` today — readout and native
+diagnostics arrive with its next slice.
