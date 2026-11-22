@@ -14,7 +14,8 @@ The first vertical slice is **LFM3-1.7B text streaming** on a Google Pixel 8 Pro
 
 - [Brand identity](BRAND_IDENTITY.md) — official LOLA logo and mascot usage.
 - [Architecture](ARCHITECTURE.md) — runtime components, ownership and execution paths.
-- [Inference contract](INFERENCE_CONTRACT.md) — backend-neutral API, streaming, state and cancellation.\n- [ADR-043](ADR-043-MEMORY-SKILLS-WORKFLOW-GRAPHS.md) — memory, embeddings/RAG, Agent Skills and typed workflow graphs.
+- [Inference contract](INFERENCE_CONTRACT.md) — backend-neutral API, streaming, state and cancellation.
+- [ADR-043](ADR-043-MEMORY-SKILLS-WORKFLOW-GRAPHS.md) — memory, embeddings/RAG, Agent Skills and typed workflow graphs.
 - [Android POC](ANDROID_POC.md) — app modules, screens, offline acceptance.
 - [Model lifecycle](MODEL_LIFECYCLE.md) — catalogue, downloads, verification, installation and deletion.
 
