@@ -386,3 +386,40 @@ distribution). ACE = Adaptive Cognitive Execution.
 *ACE memory, skills and workflow-graph round (2026-11-22). Full decision and research: [ADR-043](ace/ADR-043-MEMORY-SKILLS-WORKFLOW-GRAPHS.md).*
 
 **ADR-043 — ACE adopts a model-independent memory substrate, Agent Skills and typed Workflow Graphs.** Memory is a governed lifecycle (episodic, semantic, procedural and working), not a vector database or longer prompt. Start with local SQLite + provenance + FTS5 + structured/graph retrieval; add embeddings/int8 vector retrieval only behind measured recall and resource gates. TurboQuant is an experimental quantization candidate for vector indexes and, separately, inference KV caches; no H100 or cross-model performance claims transfer to Android/LFM3 without same-device evidence. FlashMem is a model-specific latent-memory research direction, not canonical persistent memory. Adopt the Agent Skills standard unchanged; skills describe reusable capabilities, while separate versioned typed Workflow Graphs compose skills, retrieval, model calls, tools, validation and outputs. Decision owns graph validation, planning, retrieval policy, scheduling and tool authorization; Streaming owns model/session state and ordered generation. They communicate through typed events and immutable context snapshots. Initial ACE vertical remains LFM3-1.7B; future multiple streaming profiles are capability/budget-selected. Legacy trading crates remain research references only and are not ACE dependencies.
+
+
+---
+
+*Native-inference track round (2026-11-22, owner directive). Full track:
+[Native Inference](ace/NATIVE_INFERENCE.md).*
+
+**ADR-044 — LOLA Native Inference is a first-class engineering track;
+three-engine comparative strategy (LOLA Native / llama.cpp / LiteRT-LM).**
+LOLA commits to its own execution engine, specialised first for LFM3 on
+Android (Pixel 8 Pro), developed in phases N0–N4 behind explicit
+acceptance criteria: correct execution, validated streaming, state
+handling, lifecycle, memory-pressure stability, reproducible
+physical-device benchmarks vs both references, and zero ACE-contract
+regressions. The reference llama.cpp backend remains shipped and
+functional for the entire development period; LiteRT-LM is admitted as a
+benchmark backend only, never a mandatory dependency. Emulator numbers
+stay classified as plumbing/functional validation, never device evidence.
+
+**Reconciliation with prior decisions (flagged, not overridden):**
+- **ADR-003 rev. ("llama.cpp is a development-time oracle — nothing of it
+  ships") is superseded in part, effective with the ACE pivot:** PRs
+  #11–#13 already ship pinned llama.cpp as the app's runtime backend, and
+  this decision keeps it shipped as the reference/benchmark engine until
+  the §8 gates pass. The spirit is unchanged — llama.cpp remains a
+  replaceable reference, never the strategic engine.
+- **ADR-042** (native engine earns adoption through same-device
+  benchmarks) is executed, not amended: ADR-044's acceptance criteria
+  operationalize it.
+- **ADR-040** quantisation ladder and SB gates bind the native engine's
+  quantised paths unchanged.
+- **ADR-027** (Compose + UniFFI + in-process Rust) governs integration;
+  the track's "C++ where appropriate" clause is a measured-need exception
+  only — the engine lab today is Rust-first and no C++ component exists.
+- **ADR-043** (merged): memory/skills/workflow remain model-independent
+  ACE substrates; the native engine is their streaming-model backend
+  candidate, nothing in ADR-044 alters ADR-043's boundaries.
