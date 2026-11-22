@@ -108,17 +108,25 @@ fn hot_cache_refreshes_at_validity_boundaries_and_invalidates_writes() {
     let cold = cache.cold(&conn, "n-instrument", 100).expect("cold");
     let warm = cache.warm("n-instrument", 100).expect("warm");
     assert_eq!(cold, warm, "warm must equal cold");
-    assert_eq!(warm.len(), 2, "both e1 and the expiring e5 are valid at t=100");
+    assert_eq!(
+        warm.len(),
+        2,
+        "both e1 and the expiring e5 are valid at t=100"
+    );
 
     // No graph write occurs: the t=150 expiry alone must force a SQL refresh.
-    let after_expiry = cache.edges_for(&conn, "n-instrument", 150).expect("after expiry");
+    let after_expiry = cache
+        .edges_for(&conn, "n-instrument", 150)
+        .expect("after expiry");
     assert_eq!(after_expiry.len(), 1, "e5 is no longer valid at t=150");
     assert!(after_expiry.iter().all(|edge| edge.edge_id == "e1"));
 
     // A future edge was absent from the original cache. Its opening at t=500
     // must also invalidate the cached neighborhood.
     assert!(cache.warm("n-instrument", 500).is_none());
-    let after_future_open = cache.edges_for(&conn, "n-instrument", 500).expect("future open");
+    let after_future_open = cache
+        .edges_for(&conn, "n-instrument", 500)
+        .expect("future open");
     assert_eq!(after_future_open.len(), 2);
     assert!(after_future_open.iter().any(|edge| edge.edge_id == "e3"));
 
@@ -131,7 +139,10 @@ fn hot_cache_refreshes_at_validity_boundaries_and_invalidates_writes() {
     )
     .expect("new edge");
     let stale = cache.warm("n-instrument", 500).expect("stale warm");
-    assert_eq!(stale, after_future_open, "graph writes remain invalidate-driven");
+    assert_eq!(
+        stale, after_future_open,
+        "graph writes remain invalidate-driven"
+    );
 
     cache.invalidate_all();
     let fresh = cache.edges_for(&conn, "n-instrument", 500).expect("fresh");
@@ -153,7 +164,9 @@ fn hot_cache_misses_when_query_time_moves_before_its_load_anchor() {
     assert_eq!(at_150.len(), 1);
     assert!(cache.warm("n-instrument", 100).is_none());
 
-    let at_100 = cache.edges_for(&conn, "n-instrument", 100).expect("historical refresh");
+    let at_100 = cache
+        .edges_for(&conn, "n-instrument", 100)
+        .expect("historical refresh");
     assert_eq!(at_100.len(), 2);
     assert!(at_100.iter().any(|edge| edge.edge_id == "e5"));
     drop(conn);
