@@ -191,7 +191,7 @@ class ModelTransferManager(context: Context) {
                 return
             }
 
-            check(task.isCancelled()) { "Transferência cancelada" }
+            check(!task.isCancelled()) { "Transferência cancelada" }
             val initialOffset = partFile.length()
             if (initialOffset > MAX_ARTIFACT_BYTES) {
                 throw IOException("O ficheiro parcial excede o limite local de 8 GiB.")
@@ -271,7 +271,7 @@ class ModelTransferManager(context: Context) {
                         FileOutputStream(partFile, append).use { output ->
                             val buffer = ByteArray(BUFFER_SIZE)
                             while (true) {
-                                check(task.isCancelled()) { "Transferência cancelada" }
+                                check(!task.isCancelled()) { "Transferência cancelada" }
                                 val count = input.read(buffer)
                                 if (count < 0) break
                                 if (count == 0) continue
@@ -319,7 +319,7 @@ class ModelTransferManager(context: Context) {
                 task.connection = null
             }
 
-            check(task.isCancelled()) { "Transferência cancelada" }
+            check(!task.isCancelled()) { "Transferência cancelada" }
             update(task,
                 ModelTransferSnapshot(
                     modelId = model.id,
@@ -338,7 +338,7 @@ class ModelTransferManager(context: Context) {
                 throw IOException("O SHA-256 do ficheiro não corresponde ao catálogo. A transferência foi descartada.")
             }
 
-            check(task.isCancelled()) { "Transferência cancelada" }
+            check(!task.isCancelled()) { "Transferência cancelada" }
             store.promoteVerifiedArtifact(
                 model = model,
                 partFile = partFile,
@@ -404,7 +404,7 @@ class ModelTransferManager(context: Context) {
     ): HttpURLConnection {
         var current = URL(source)
         for (redirectCount in 0..MAX_REDIRECTS) {
-            check(task.isCancelled()) { "Transferência cancelada" }
+            check(!task.isCancelled()) { "Transferência cancelada" }
             check(current.protocol.equals("https", ignoreCase = true)) {
                 "A transferência só aceita HTTPS."
             }
@@ -441,7 +441,7 @@ class ModelTransferManager(context: Context) {
         FileInputStream(file).use { input ->
             val buffer = ByteArray(BUFFER_SIZE)
             while (true) {
-                check(task.isCancelled()) { "Transferência cancelada" }
+                check(!task.isCancelled()) { "Transferência cancelada" }
                 val count = input.read(buffer)
                 if (count < 0) break
                 if (count == 0) continue
