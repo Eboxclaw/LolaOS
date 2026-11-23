@@ -5,9 +5,6 @@ on:
     branches: [main]
   pull_request:
 
-permissions:
-  contents: read
-
 jobs:
   assemble:
     runs-on: ubuntu-latest
@@ -44,3 +41,70 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+  # Signed, versioned APK for real-device testing. Every main push
+  # publishes lola-ace-<versionCode>.apk to the rolling "LOLA ACE testing"
+  # release; versionCode = GITHUB_RUN_NUMBER keeps installs monotonically
+  # updatable under the committed dev-signing key.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK components
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" "ndk;29.0.13113456" "cmake;3.31.6"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.5.0"
+
+      - name: Assemble signed release APK
+        run: gradle -p android :app:assembleRelease
+
+      - name: Name APK by version
+        run: |
+          VERSION_CODE="${{ github.run_number }}"
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "lola-ace-${VERSION_CODE}.apk"
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lola-ace-release-arm64
+          path: lola-ace-${{ github.run_number }}.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish to rolling testing release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_CODE="${{ github.run_number }}"
+          gh release view testing --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create testing --repo "$GITHUB_REPOSITORY" \
+              --title "LOLA ACE — device testing" \
+              --notes "Rolling signed build for real-device testing. Install the newest lola-ace-<version>.apk; higher version numbers install directly over older ones (same signature)." \
+              --prerelease
+          gh release upload testing "lola-ace-${VERSION_CODE}.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit testing --repo "$GITHUB_REPOSITORY" \
+            --notes "Latest build: lola-ace-${VERSION_CODE}.apk (main @ ${{ github.sha }}).
+
+          Install over any previous lola-ace build — the versionCode is monotonic and the signing key is stable.
+
+          See docs/ace/DEVICE_TESTING.md for the test protocol." --prerelease
