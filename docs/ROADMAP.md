@@ -23,7 +23,7 @@ a slice.
 | A8 | Kotlin↔Rust bridge: app served through `ace-inference`/UniFFI, contracts unified (kills the parallel Kotlin/Rust interface duplication) | queued |
 | A9 | Native-engine adoption harness — folded into the N-track below (N3/N4) | → N-track |
 | A10 | Dual-pipeline v0 in `ace-core` — merged (PR #24) | ✅ |
-| A11 | Contract adapters: `ace-inference` implements the A10 ports over `InferenceBackend`; contract gains `prefill`/`score_choices`/`diagnostics`/`cancel` (INFERENCE_CONTRACT §2 names now implemented) | in review |
+| A11 | Contract adapters: `ace-inference` implements the A10 ports over `InferenceBackend`; contract gains `prefill`/`score_choices`/`diagnostics`/`cancel` (INFERENCE_CONTRACT §2 names now implemented) | ✅ PR #25 |
 
 ### N-track — LOLA Native Inference ([ADR-044](ace/NATIVE_INFERENCE.md))
 
