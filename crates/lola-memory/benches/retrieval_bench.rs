@@ -208,7 +208,9 @@ fn bench_retrieval(c: &mut Criterion) {
     });
     group.bench_function("graph_edges_warm_cache", |b| {
         b.iter(|| {
-            let edges = hot_edges.warm(black_box("hub")).expect("warm");
+            let edges = hot_edges
+                .warm(black_box("hub"), black_box(now))
+                .expect("warm");
             black_box(edges.len())
         })
     });

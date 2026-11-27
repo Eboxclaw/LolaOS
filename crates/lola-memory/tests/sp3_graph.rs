@@ -28,14 +28,18 @@ fn seeded() -> (rusqlite::Connection, std::path::PathBuf) {
         )
         .expect("node");
     }
-    // Edges from n-instrument: one valid now, one expired, one future.
-    //   valid:    -> n-regime (HasRegime)
-    //   expired:  -> n-pattern (closed at t=50)
-    //   future:   -> n-decision (opens at t=500)
-    let edges: [(&str, &str, &str, i64, i64); 3] = [
+    // Edges from n-instrument: always-valid, expired, future, and
+    // currently-valid-but-expiring. The cache must refresh at both
+    // temporal boundaries, without requiring a graph write.
+    //   e1: always valid -> n-regime
+    //   e2: expired at t=50 -> n-pattern
+    //   e3: opens at t=500 -> n-decision
+    //   e5: expires at t=150 -> n-decision
+    let edges: [(&str, &str, &str, i64, i64); 4] = [
         ("e1", "n-regime", "HasRegime", 0, 0),
         ("e2", "n-pattern", "MatchesPattern", 0, 50),
         ("e3", "n-decision", "ResultedIn", 500, 0),
+        ("e5", "n-decision", "SupportedBy", 0, 150),
     ];
     for (edge_id, target, relation, from, until) in edges {
         let (vf, vu) = (
@@ -75,8 +79,9 @@ fn one_hop_filters_validity() {
     // now = 100: e1 valid, e2 expired (until 50), e3 not yet open (from 500).
     let edges =
         lola_memory::graph::query::open_edges_from(&conn, "n-instrument", 100, 20).expect("edges");
-    assert_eq!(edges.len(), 1, "only the currently-valid edge");
-    assert_eq!(edges[0].target_node_id, "n-regime");
+    assert_eq!(edges.len(), 2, "only currently-valid edges");
+    assert!(edges.iter().any(|edge| edge.target_node_id == "n-regime"));
+    assert!(edges.iter().any(|edge| edge.edge_id == "e5"));
     drop(conn);
     cleanup(&path);
 }
@@ -96,31 +101,74 @@ fn two_hop_reaches_through_valid_edges() {
 }
 
 #[test]
-fn hot_cache_warm_equals_cold_and_invalidations_see_writes() {
+fn hot_cache_refreshes_at_validity_boundaries_and_invalidates_writes() {
     let (conn, path) = seeded();
     let mut cache = EdgeHotCache::new(64);
-    let now = 100;
 
-    let cold = cache.cold(&conn, "n-instrument", now).expect("cold");
-    let warm = cache.warm("n-instrument").expect("warm");
+    let cold = cache.cold(&conn, "n-instrument", 100).expect("cold");
+    let warm = cache.warm("n-instrument", 100).expect("warm");
     assert_eq!(cold, warm, "warm must equal cold");
+    assert_eq!(
+        warm.len(),
+        2,
+        "both e1 and the expiring e5 are valid at t=100"
+    );
+
+    // No graph write occurs: the t=150 expiry alone must force a SQL refresh.
+    let after_expiry = cache
+        .edges_for(&conn, "n-instrument", 150)
+        .expect("after expiry");
+    assert_eq!(after_expiry.len(), 1, "e5 is no longer valid at t=150");
+    assert!(after_expiry.iter().all(|edge| edge.edge_id == "e1"));
+
+    // A future edge was absent from the original cache. Its opening at t=500
+    // must also invalidate the cached neighborhood.
+    assert!(cache.warm("n-instrument", 500).is_none());
+    let after_future_open = cache
+        .edges_for(&conn, "n-instrument", 500)
+        .expect("future open");
+    assert_eq!(after_future_open.len(), 2);
+    assert!(after_future_open.iter().any(|edge| edge.edge_id == "e3"));
 
     // A write lands underneath; the cache must not see it until invalidated.
     conn.execute(
         "INSERT INTO graph_edges (edge_id, source_node_id, relation, target_node_id,
              attributes_json, source_type, source_ref, created_at_ns)
-         VALUES ('e5', 'n-instrument', 'SupportedBy', 'n-decision', '{}', 'test', 'sp3', 2)",
+         VALUES ('e6', 'n-instrument', 'SupportedBy', 'n-decision', '{}', 'test', 'sp3-write', 2)",
         params![],
     )
     .expect("new edge");
-    let stale = cache.warm("n-instrument").expect("stale warm");
-    assert_eq!(stale.len(), 1, "stale until invalidated");
+    let stale = cache.warm("n-instrument", 500).expect("stale warm");
+    assert_eq!(
+        stale, after_future_open,
+        "graph writes remain invalidate-driven"
+    );
 
     cache.invalidate_all();
-    let fresh = cache.edges_for(&conn, "n-instrument", now).expect("fresh");
-    assert_eq!(fresh.len(), 2, "invalidation sees the write");
+    let fresh = cache.edges_for(&conn, "n-instrument", 500).expect("fresh");
+    assert_eq!(fresh.len(), 3, "invalidation sees the write");
     let (hits, misses) = cache.stats();
     assert!(hits >= 2 && misses >= 2);
+    drop(conn);
+    cleanup(&path);
+}
+
+#[test]
+fn hot_cache_misses_when_query_time_moves_before_its_load_anchor() {
+    let (conn, path) = seeded();
+    let mut cache = EdgeHotCache::new(64);
+
+    // Load at t=150 after e5 has expired; a historical query at t=100
+    // must not reuse that later snapshot because e5 was valid then.
+    let at_150 = cache.cold(&conn, "n-instrument", 150).expect("cold at 150");
+    assert_eq!(at_150.len(), 1);
+    assert!(cache.warm("n-instrument", 100).is_none());
+
+    let at_100 = cache
+        .edges_for(&conn, "n-instrument", 100)
+        .expect("historical refresh");
+    assert_eq!(at_100.len(), 2);
+    assert!(at_100.iter().any(|edge| edge.edge_id == "e5"));
     drop(conn);
     cleanup(&path);
 }
